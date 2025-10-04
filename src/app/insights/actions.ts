@@ -46,16 +46,23 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 
 
 // This combines fetching climate data and gettings a prediction into one action.
-export async function getEnhancedBloomPrediction(input: Omit<PredictNextBloomDateInput, 'climateData' | 'ndviData'> & { ndviData: NdviDataOutput }): Promise<PredictionResult> {
+export async function getEnhancedBloomPrediction(input: { cityName: string, lat: number, lon: number, ndviData: NdviDataOutput }): Promise<PredictionResult> {
     try {
         // 1. Fetch climate data first
         const climateInput: ClimateDataInput = { lat: input.lat, lon: input.lon };
         const climateResult = await getClimateData(climateInput);
+        
+        // Use a dummy bloom date for now. In a real app this might come from a DB.
+        const dummyLatestBloom = `${new Date().getFullYear()}-04-01`;
 
         // 2. Combine with other input and get prediction
         const predictionInput: PredictNextBloomDateInput = {
-            ...input,
+            regionName: input.cityName,
+            lat: input.lat,
+            lon: input.lon,
             climateData: climateResult,
+            ndviData: input.ndviData.map(d => ({ month: d.month, value: d.value })),
+            latestBloomDate: dummyLatestBloom,
         };
         
         const result = await predictNextBloomDate(predictionInput);

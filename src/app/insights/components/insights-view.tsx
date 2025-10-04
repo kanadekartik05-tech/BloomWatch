@@ -1,15 +1,10 @@
 
 'use client';
 
-import { useState, useMemo, useTransition, useEffect } from 'react';
-import type { Region } from '@/lib/data';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
+import type { Country, State, City } from '@/lib/geodata';
+import { MapSearch } from '@/app/map/components/map-search';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
@@ -26,10 +21,12 @@ import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 
 type InsightsViewProps = {
-  regions: Region[];
+    geodata: Country[];
+    allCountries: Country[];
 };
 
 type PredictionState = PredictNextBloomDateOutput | null;
+type ViewLevel = 'country' | 'state' | 'city';
 
 const chartConfig: ChartConfig = {
   value: {
@@ -38,9 +35,14 @@ const chartConfig: ChartConfig = {
   },
 };
 
-export function InsightsView({ regions }: InsightsViewProps) {
-  const [selectedRegionName, setSelectedRegionName] = useState(regions[0].name);
-  
+export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
+  const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
+  const [states, setStates] = useState<State[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [selectedState, setSelectedState] = useState<State | null>(null);
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+
   const [prediction, setPrediction] = useState<PredictionState>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [isAIPending, startAITransition] = useTransition();
@@ -49,24 +51,85 @@ export function InsightsView({ regions }: InsightsViewProps) {
   const [vegetationError, setVegetationError] = useState<string | null>(null);
   const [isVegetationPending, startVegetationTransition] = useTransition();
 
-  const selectedRegion = useMemo(
-    () => regions.find((r) => r.name === selectedRegionName)!,
-    [regions, selectedRegionName]
-  );
-  
-  useEffect(() => {
-    // Reset states when region changes
+  const resetSelection = (level: 'country' | 'state' | 'city') => {
+    if (level === 'country') {
+      setSelectedCountry(null);
+      setSelectedState(null);
+      setSelectedCity(null);
+      setStates([]);
+      setCities([]);
+    }
+    if (level === 'state') {
+       setSelectedState(null);
+       setSelectedCity(null);
+       setCities([]);
+    }
+    if (level === 'city') {
+       setSelectedCity(null);
+    }
     setPrediction(null);
     setPredictionError(null);
     setVegetationData(null);
     setVegetationError(null);
+  }
 
-    if (!selectedRegion) return;
+  const handleSelectCountry = useCallback((country: Country) => {
+    setSelectedCountry(country);
+    if (country.states && country.states.length > 0) {
+        setViewLevel('state');
+        resetSelection('state');
+        setStates(country.states || []);
+    } else {
+        setViewLevel('country');
+        setVegetationError("Data for this country is not yet available. We are working on it!");
+        setStates([]);
+        setCities([]);
+        setSelectedState(null);
+        setSelectedCity(null);
+    }
+  }, []);
+
+  const handleSelectState = useCallback((state: State) => {
+    if (!selectedCountry) return;
+    setSelectedState(state);
+    setViewLevel('city');
+    resetSelection('city');
+    setCities(state.cities || []);
+  }, [selectedCountry]);
+  
+  const handleSelectCity = useCallback((city: City) => {
+      setSelectedCity(city);
+  }, []);
+
+  const handleBackToCountries = () => {
+    setViewLevel('country');
+    resetSelection('country');
+  };
+
+  const handleBackToStates = () => {
+    if (!selectedCountry) return;
+    setViewLevel('state');
+    resetSelection('city');
+  };
+
+  useEffect(() => {
+    if (!selectedCity) {
+      setVegetationData(null);
+      setPrediction(null);
+      setVegetationError(null);
+      setPredictionError(null);
+      return
+    };
 
     startVegetationTransition(async () => {
+        setVegetationData(null);
+        setPrediction(null);
+        setVegetationError(null);
+        setPredictionError(null);
+
         const result = await fetchNdviDataForRegion({
-            lat: selectedRegion.lat,
-            lon: selectedRegion.lon,
+            lat: selectedCity.lat,
+            lon: selectedCity.lon,
         });
 
         if (result.success) {
@@ -76,29 +139,24 @@ export function InsightsView({ regions }: InsightsViewProps) {
         }
     });
 
-  }, [selectedRegionName, selectedRegion]);
+  }, [selectedCity]);
 
   const peakInsolation = useMemo(() => {
     if (!vegetationData) return 0;
     return Math.max(...vegetationData.map(d => d.value))
   }, [vegetationData]);
 
-  const handleRegionChange = (value: string) => {
-    setSelectedRegionName(value);
-  };
-
   const handlePredict = () => {
-    if (!vegetationData) return;
+    if (!vegetationData || !selectedCity) return;
     startAITransition(async () => {
       setPrediction(null);
       setPredictionError(null);
       
       const result = await getEnhancedBloomPrediction({
-        regionName: selectedRegion.name,
-        lat: selectedRegion.lat,
-        lon: selectedRegion.lon,
+        cityName: selectedCity.name,
+        lat: selectedCity.lat,
+        lon: selectedCity.lon,
         ndviData: vegetationData,
-        latestBloomDate: selectedRegion.latest_bloom,
       });
 
       if (result.success && result.data) {
@@ -113,99 +171,104 @@ export function InsightsView({ regions }: InsightsViewProps) {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>Region Selection</CardTitle>
-          <CardDescription>Choose a region to analyze its vegetation data and generate AI-powered insights.</CardDescription>
+          <CardTitle>Location Selection</CardTitle>
+          <CardDescription>Choose a location to analyze its vegetation data and generate AI-powered insights.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Select value={selectedRegionName} onValueChange={handleRegionChange}>
-            <SelectTrigger className="w-full md:w-72">
-              <SelectValue placeholder="Select a region" />
-            </SelectTrigger>
-            <SelectContent>
-              {regions.map((region) => (
-                <SelectItem key={region.name} value={region.name}>
-                  {region.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent className="w-full md:w-96">
+            <MapSearch
+                viewLevel={viewLevel}
+                countries={allCountries}
+                states={states}
+                cities={cities}
+                loadingStates={false}
+                loadingCities={false}
+                selectedCountry={selectedCountry}
+                selectedState={selectedState}
+                onSelectCountry={handleSelectCountry}
+                onSelectState={handleSelectState}
+                onSelectCity={handleSelectCity}
+                onBackToCountries={handleBackToCountries}
+                onBackToStates={handleBackToStates}
+            />
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Monthly Insolation Trend for {selectedRegion.name}</CardTitle>
-            <CardDescription>All sky insolation from NASA POWER API, a proxy for vegetation health.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isVegetationPending && (
-                <div className="flex h-72 w-full items-center justify-center text-muted-foreground">
-                    <Loader className="mr-2 h-6 w-6 animate-spin" />
-                    Fetching real-time vegetation proxy data from NASA...
-                </div>
-            )}
-            {vegetationError && !isVegetationPending && (
-                <Alert variant="destructive">
-                    <AlertTitle>Failed to Fetch Vegetation Data</AlertTitle>
-                    <AlertDescription>{vegetationError}</AlertDescription>
-                </Alert>
-            )}
-            {vegetationData && !isVegetationPending && (
-              <ChartContainer config={chartConfig} className="h-72 w-full">
-                <BarChart data={vegetationData} accessibilityLayer>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} tickMargin={10} />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  {peakInsolation > 0 && <ReferenceLine y={peakInsolation} label={{ value: 'Peak Proxy', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />}
-                  <Bar dataKey="value" fill="var(--color-value)" radius={4} />
-                </BarChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+      {selectedCity && (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+            <CardHeader>
+                <CardTitle>Monthly Insolation Trend for {selectedCity.name}</CardTitle>
+                <CardDescription>All sky insolation from NASA POWER API, a proxy for vegetation health.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isVegetationPending && (
+                    <div className="flex h-72 w-full items-center justify-center text-muted-foreground">
+                        <Loader className="mr-2 h-6 w-6 animate-spin" />
+                        Fetching real-time vegetation proxy data from NASA...
+                    </div>
+                )}
+                {vegetationError && !isVegetationPending && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Failed to Fetch Vegetation Data</AlertTitle>
+                        <AlertDescription>{vegetationError}</AlertDescription>
+                    </Alert>
+                )}
+                {vegetationData && !isVegetationPending && (
+                <ChartContainer config={chartConfig} className="h-72 w-full">
+                    <BarChart data={vegetationData} accessibilityLayer>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} tickMargin={10} />
+                    <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    {peakInsolation > 0 && <ReferenceLine y={peakInsolation} label={{ value: 'Peak Proxy', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />}
+                    <Bar dataKey="value" fill="var(--color-value)" radius={4} />
+                    </BarChart>
+                </ChartContainer>
+                )}
+            </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>AI-Powered Insights</CardTitle>
-            <CardDescription>Predict the next bloom event and understand its context.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col space-y-4">
-            <Button onClick={handlePredict} disabled={isAIPending || isVegetationPending || !vegetationData}>
-              {isAIPending ? (
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="mr-2 h-4 w-4" />
-              )}
-              Generate Insights
-            </Button>
-            
-            {isAIPending && (
-                <div className="flex items-center text-sm text-muted-foreground p-4 border rounded-lg">
+            <Card>
+            <CardHeader>
+                <CardTitle>AI-Powered Insights</CardTitle>
+                <CardDescription>Predict the next bloom event and understand its context.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col space-y-4">
+                <Button onClick={handlePredict} disabled={isAIPending || isVegetationPending || !vegetationData}>
+                {isAIPending ? (
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing climate and vegetation data to generate prediction...
-                </div>
-            )}
-            
-            {predictionError && !isAIPending &&(
-                <Alert variant="destructive">
-                    <AlertTitle>Prediction Failed</AlertTitle>
-                    <AlertDescription>{predictionError}</AlertDescription>
-                </Alert>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                ) : (
+                    <Wand2 className="mr-2 h-4 w-4" />
+                )}
+                Generate Insights
+                </Button>
+                
+                {isAIPending && (
+                    <div className="flex items-center text-sm text-muted-foreground p-4 border rounded-lg">
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing climate and vegetation data to generate prediction...
+                    </div>
+                )}
+                
+                {predictionError && !isAIPending &&(
+                    <Alert variant="destructive">
+                        <AlertTitle>Prediction Failed</AlertTitle>
+                        <AlertDescription>{predictionError}</AlertDescription>
+                    </Alert>
+                )}
+            </CardContent>
+            </Card>
+        </div>
+      )}
 
       {prediction && !isAIPending && (
         <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle className="text-2xl font-bold text-primary">
-                    Predicted Bloom Date for {selectedRegion.name}: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    Predicted Bloom Date for {selectedCity?.name}: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </CardTitle>
                 <CardDescription>{prediction.predictionJustification}</CardDescription>
             </CardHeader>
