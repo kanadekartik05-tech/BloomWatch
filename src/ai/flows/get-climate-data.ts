@@ -27,10 +27,7 @@ const getClimateDataFlow = ai.defineFlow(
     },
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
-        if (!apiKey) {
-            throw new Error('NASA POWER API key is not configured in environment variables.');
-        }
-
+        
         const endDate = new Date();
         const startDate = subYears(endDate, 1);
 
@@ -41,21 +38,20 @@ const getClimateDataFlow = ai.defineFlow(
         const community = 'RE'; // Renewable Energy
         const formatType = 'JSON';
 
-        const apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${startYear}&end=${endYear}&format=${formatType}&api_key=${apiKey}`;
+        let apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${startYear}&end=${endYear}&format=${formatType}`;
+        
+        if (apiKey && apiKey !== "YOUR_NASA_API_KEY_HERE" && apiKey.length > 5) {
+            apiUrl += `&api_key=${apiKey}`;
+        }
         
         try {
             const response = await fetch(apiUrl);
             if (!response.ok) {
                 const errorText = await response.text();
-                // Check if the error is due to an invalid API key
-                if (errorText.includes("Invalid API key")) {
-                     throw new Error('The provided NASA POWER API key is invalid. Please check your key and try again.');
-                }
                 throw new Error(`NASA POWER API request failed with status ${response.status}: ${errorText}`);
             }
             const data: any = await response.json();
 
-            // Handle cases where the API returns an error object
             if (data.error) {
                 throw new Error(`NASA POWER API Error: ${data.error}`);
             }
@@ -87,10 +83,9 @@ const getClimateDataFlow = ai.defineFlow(
                     rainfall: prectotcorr[key],
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
-
-            // Filter to get the last 12 months of data
+            
             const currentYear = getYear(endDate);
-            const currentMonthIndex = getMonth(endDate); // 0-11
+            const currentMonthIndex = getMonth(endDate);
 
             const last12MonthsData = allData.filter(d => {
                 if (d.year === currentYear) {
@@ -102,15 +97,12 @@ const getClimateDataFlow = ai.defineFlow(
                 return false;
             });
             
-            // Sort the data chronologically
             last12MonthsData.sort((a, b) => {
-                if (a.year !== b.year) {
-                    return a.year - b.year;
-                }
+                const yearDiff = a.year - b.year;
+                if (yearDiff !== 0) return yearDiff;
                 return a.monthIndex - b.monthIndex;
             });
 
-            // Format for output
             const result: ClimateDataOutput = last12MonthsData.map(d => ({
                 month: d.month,
                 temperature: d.temperature,

@@ -65,15 +65,15 @@ export default function MapView({ apiKey, regions }: MapViewProps) {
           </CardHeader>
           <CardContent className="p-4 pt-0 text-sm space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#FFD700' }}></div>
-              <span>Peak Bloom</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#228B22' }}></div>
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#22C55E' }}></div>
               <span>Healthy</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#A0522D' }}></div>
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#F97316' }}></div>
+              <span>Moderate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#A16207' }}></div>
               <span>Low Veg.</span>
             </div>
           </CardContent>

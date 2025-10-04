@@ -13,10 +13,11 @@ type RegionMarkerProps = {
   onClick: (regionName: string) => void;
 };
 
+// Updated color logic based on new spec: Green (Healthy), Orange (Moderate), Brown (Low)
 const getMarkerColor = (ndviValue: number): string => {
-  if (ndviValue > 0.7) return '#FFD700'; // Peak Bloom (Gold)
-  if (ndviValue > 0.3) return '#228B22'; // Healthy (ForestGreen)
-  return '#A0522D'; // Low Vegetation (Sienna)
+  if (ndviValue > 0.6) return '#22C55E'; // Green for Healthy
+  if (ndviValue > 0.3) return '#F97316'; // Orange for Moderate
+  return '#A16207'; // Brown for Low
 };
 
 const MarkerIcon = ({ color }: { color: string }) => (
