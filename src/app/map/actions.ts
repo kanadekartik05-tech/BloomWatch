@@ -4,6 +4,7 @@
 import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
 import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
+import { summarizeChartData, type ChartDataSummaryInput, type ChartDataSummaryOutput } from "@/ai/flows/summarize-chart-data";
 import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 import { City } from "@/lib/geodata";
 
@@ -23,6 +24,14 @@ type CityAnalysisResult = {
     success: false;
     error: string;
 };
+
+type SummaryResult = {
+    success: true;
+    data: ChartDataSummaryOutput;
+} | {
+    success: false;
+    error: string;
+}
 
 export async function getAnalysisForCity(city: City, startDate?: string, endDate?: string): Promise<CityAnalysisResult> {
      try {
@@ -94,6 +103,20 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
             errorMessage = error.message;
         }
         
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getChartSummary(input: ChartDataSummaryInput): Promise<SummaryResult> {
+    try {
+        const result = await summarizeChartData(input);
+        return { success: true, data: result };
+    } catch(error) {
+        console.error("Error getting chart summary:", error);
+        let errorMessage = "Failed to generate summary from AI.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
         return { success: false, error: errorMessage };
     }
 }

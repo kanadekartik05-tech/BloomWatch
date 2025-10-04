@@ -5,9 +5,9 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon, MessageSquareText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getAnalysisForCity, getBloomPredictionForCity } from '../actions';
+import { getAnalysisForCity, getBloomPredictionForCity, getChartSummary } from '../actions';
 import {
   ChartContainer,
   ChartTooltip,
@@ -58,6 +58,10 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
     const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
 
+    const [isSummaryPending, startSummaryTransition] = useTransition();
+    const [summary, setSummary] = useState<string | null>(null);
+    const [summaryError, setSummaryError] = useState<string | null>(null);
+
     const [isAIPending, startAITransition] = useTransition();
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
     const [predictionError, setPredictionError] = useState<string | null>(null);
@@ -71,6 +75,8 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
         setVegetationData(null);
         setPrediction(null);
         setPredictionError(null);
+        setSummary(null);
+        setSummaryError(null);
 
         if (!city) {
             return;
@@ -106,6 +112,25 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
           }
         });
       };
+    
+    const handleGenerateSummary = () => {
+        if (!city || !climateData || !vegetationData) return;
+
+        startSummaryTransition(async () => {
+            setSummary(null);
+            setSummaryError(null);
+            const result = await getChartSummary({
+                locationName: city.name,
+                climateData,
+                vegetationData,
+            });
+            if (result.success) {
+                setSummary(result.data.summary);
+            } else {
+                setSummaryError(result.error);
+            }
+        });
+    }
 
 
   return (
@@ -253,6 +278,33 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                             <p className="text-sm text-muted-foreground">No climate data available.</p>
                          )}
                     </div>
+                    
+                    <div className="space-y-4">
+                        <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isAnalysisPending || !climateData || !vegetationData} className="w-full">
+                            {isSummaryPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                            Generate Short Reply
+                        </Button>
+                        {isSummaryPending && (
+                            <div className="flex items-center text-sm text-muted-foreground">
+                                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                                Generating summary...
+                            </div>
+                        )}
+                        {summaryError && !isSummaryPending && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Summary Failed</AlertTitle>
+                                <AlertDescription>{summaryError}</AlertDescription>
+                            </Alert>
+                        )}
+                        {summary && !isSummaryPending && (
+                            <Alert>
+                                <AlertTitle>Analysis Summary</AlertTitle>
+                                <AlertDescription>{summary}</AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+
 
                     <Card>
                         <CardHeader>
