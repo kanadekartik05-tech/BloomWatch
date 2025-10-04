@@ -5,7 +5,8 @@ import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-ma
 import { useState, useCallback, useMemo, useTransition } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
-import { geodata, allCountries as extraCountries, type Country, type State, type City } from '@/lib/geodata';
+import { geodata, allCountries as extraCountries } from '@/lib/geodata';
+import type { Country, State, City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getBloomPredictionForCity } from '../actions';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
@@ -96,6 +97,22 @@ export default function MapView({ apiKey }: MapViewProps) {
     resetSelection();
   }, [selectedCountry]);
 
+  const handleToggleCompareItem = (city: City) => {
+    setComparisonList(prevList => {
+      const isAlreadyInList = prevList.some(item => item.name === city.name && item.lat === city.lat);
+      if (isAlreadyInList) {
+        return prevList.filter(item => item.name !== city.name || item.lat !== city.lat);
+      }
+      if (prevList.length < MAX_COMPARISON_ITEMS) {
+        return [...prevList, city];
+      }
+      // Optional: Show a notification that the limit is reached
+      setError(`You can only compare up to ${MAX_COMPARISON_ITEMS} cities at a time.`);
+      setTimeout(() => setError(null), 3000);
+      return prevList;
+    });
+  }
+
   const handleSelectCity = useCallback((city: City) => {
     if (isCompareMode) {
       handleToggleCompareItem(city);
@@ -154,20 +171,6 @@ export default function MapView({ apiKey }: MapViewProps) {
     }
   }
 
-  const handleToggleCompareItem = (city: City) => {
-    setComparisonList(prevList => {
-      const isAlreadyInList = prevList.some(item => item.name === city.name);
-      if (isAlreadyInList) {
-        return prevList.filter(item => item.name !== city.name);
-      }
-      if (prevList.length < MAX_COMPARISON_ITEMS) {
-        return [...prevList, city];
-      }
-      // Optional: Show a notification that the limit is reached
-      return prevList;
-    });
-  }
-
   const handleMarkerClick = (item: any) => {
      if (item.type === 'country') {
       handleSelectCountry(item);
@@ -189,7 +192,7 @@ export default function MapView({ apiKey }: MapViewProps) {
   }
 
   const isCityInComparison = (city: City) => {
-    return comparisonList.some(item => item.name === city.name);
+    return comparisonList.some(item => item.name === city.name && item.lat === city.lat);
   }
 
   return (
@@ -205,15 +208,15 @@ export default function MapView({ apiKey }: MapViewProps) {
       >
         {markersToDisplay.map((item: any) => (
           <RegionMarker
-            key={item.name}
+            key={`${item.name}-${item.lat}-${item.lon}`}
             item={item}
             onClick={() => handleMarkerClick(item)}
             onClose={handleInfoWindowClose}
-            isSelected={selectedCity?.name === item.name && !isCompareMode}
+            isSelected={selectedCity?.name === item.name && selectedCity?.lat === item.lat && !isCompareMode}
             isComparing={isCompareMode && item.type === 'city' && isCityInComparison(item)}
             isCompareModeActive={isCompareMode}
             prediction={prediction}
-            isLoading={isAIPending && selectedCity?.name === item.name}
+            isLoading={isAIPending && selectedCity?.name === item.name && selectedCity?.lat === item.lat}
             error={predictionError}
           />
         ))}

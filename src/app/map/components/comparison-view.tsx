@@ -80,7 +80,7 @@ export function ComparisonView({ cities }: ComparisonViewProps) {
       <h2 className="mb-4 text-center text-xl font-bold font-headline">Region Comparison</h2>
       <div className={`grid grid-cols-1 md:grid-cols-${cities.length} gap-4`}>
         {comparisonData.map(({ city, prediction, vegetationData, isLoading, error }) => (
-          <Card key={city.name} className="flex flex-col">
+          <Card key={`${city.name}-${city.lat}`} className="flex flex-col">
             <CardHeader>
               <CardTitle>{city.name}</CardTitle>
             </CardHeader>
@@ -92,7 +92,7 @@ export function ComparisonView({ cities }: ComparisonViewProps) {
                 </div>
               )}
               {error && !isLoading && (
-                <div className="flex flex-1 items-center justify-center text-destructive">{error}</div>
+                <div className="flex flex-1 items-center justify-center text-center text-sm text-destructive">{error}</div>
               )}
               {prediction && vegetationData && !isLoading && (
                 <>
