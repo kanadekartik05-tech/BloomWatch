@@ -1,0 +1,84 @@
+/**
+ * @fileoverview Firestore Security Rules for BloomWatch application.
+ *
+ * Core Philosophy:
+ * This ruleset provides public read access to region-related data (regions, NDVI entries, bloom events, and climate data).
+ * Contact messages are writeable by anyone to submit but not publicly readable.
+ *
+ * Data Structure:
+ * - /regions/{regionId}: Stores geographical region data.
+ * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: Stores NDVI entries for each region.
+ * - /regions/{regionId}/bloom_events/{bloomEventId}: Stores bloom events for each region.
+ * - /regions/{regionId}/climate_data/{climateDataId}: Stores climate data for each region.
+ * - /contact_messages/{contactMessageId}: Stores contact messages submitted through the contact form.
+ *
+ * Key Security Decisions:
+ * - Regions, NDVI entries, bloom events, and climate data can be read by anyone.
+ * - Contact messages can be created by anyone, but not read.
+ * - The structure is designed to optimize data access and querying efficiency.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Grants public read access to region data.  No write access is allowed.
+     * @path /regions/{regionId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Allows public read access to regions data.
+     */
+    match /regions/{regionId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Grants public read access to NDVI entries for a given region.  No write access is allowed.
+     * @path /regions/{regionId}/ndvi_entries/{ndviEntryId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Allows public read access to NDVI entries.
+     */
+    match /regions/{regionId}/ndvi_entries/{ndviEntryId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Grants public read access to bloom events for a given region. No write access is allowed.
+     * @path /regions/{regionId}/bloom_events/{bloomEventId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Allows public read access to bloom events.
+     */
+    match /regions/{regionId}/bloom_events/{bloomEventId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Grants public read access to climate data for a given region. No write access is allowed.
+     * @path /regions/{regionId}/climate_data/{climateDataId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Allows public read access to climate data.
+     */
+    match /regions/{regionId}/climate_data/{climateDataId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Allows anyone to create a contact message, but prevents reading them.
+     * @path /contact_messages/{contactMessageId}
+     * @allow create: if true;
+     * @deny get, list, update, delete: if false;
+     * @principle Allows anyone to create contact messages, but prevents reading them.
+     */
+    match /contact_messages/{contactMessageId} {
+      allow create: if true;
+      allow get, list, update, delete: if false;
+    }
+  }
+}

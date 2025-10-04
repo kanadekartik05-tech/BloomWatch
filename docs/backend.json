@@ -1,0 +1,270 @@
+{
+  "entities": {
+    "Region": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Region",
+      "type": "object",
+      "description": "Represents a geographical region with associated plant blooming data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the region."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the region."
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude of the region."
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitude of the region."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "lat",
+        "lon"
+      ]
+    },
+    "NDVIEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NDVIEntry",
+      "type": "object",
+      "description": "Represents a single NDVI (Normalized Difference Vegetation Index) data point for a region at a specific time.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the NDVI entry."
+        },
+        "regionId": {
+          "type": "string",
+          "description": "Reference to Region. (Relationship: Region 1:N NDVIEntry)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the NDVI measurement (ISO 8601 format).",
+          "format": "date-time"
+        },
+        "value": {
+          "type": "number",
+          "description": "NDVI value for the region on the given date."
+        }
+      },
+      "required": [
+        "id",
+        "regionId",
+        "date",
+        "value"
+      ]
+    },
+    "BloomEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BloomEvent",
+      "type": "object",
+      "description": "Represents a bloom event (historical or predicted) for a specific region.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bloom event."
+        },
+        "regionId": {
+          "type": "string",
+          "description": "Reference to Region. (Relationship: Region 1:N BloomEvent)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the bloom event (ISO 8601 format).",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of bloom event (e.g., 'historical', 'predicted')."
+        }
+      },
+      "required": [
+        "id",
+        "regionId",
+        "date",
+        "type"
+      ]
+    },
+    "ClimateData": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClimateData",
+      "type": "object",
+      "description": "Represents climate data (rainfall, temperature, etc.) for a specific region and time, obtained from NASA POWER API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the climate data entry."
+        },
+        "regionId": {
+          "type": "string",
+          "description": "Reference to Region. (Relationship: Region 1:N ClimateData)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the climate data measurement (ISO 8601 format).",
+          "format": "date-time"
+        },
+        "rainfall": {
+          "type": "number",
+          "description": "Rainfall measurement (e.g., in mm)."
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Temperature measurement (e.g., in Celsius)."
+        }
+      },
+      "required": [
+        "id",
+        "regionId",
+        "date"
+      ]
+    },
+    "ContactMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContactMessage",
+      "type": "object",
+      "description": "Represents a message submitted through the contact form.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the contact message."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the person submitting the message."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the person submitting the message.",
+          "format": "email"
+        },
+        "message": {
+          "type": "string",
+          "description": "The message content."
+        },
+        "sentAt": {
+          "type": "string",
+          "description": "The time the message was sent.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "message",
+        "sentAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/regions/{regionId}",
+        "definition": {
+          "entityName": "Region",
+          "schema": {
+            "$ref": "#/backend/entities/Region"
+          },
+          "description": "Stores geographical region data. Region ID is used as document ID.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "Unique identifier for the region."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/regions/{regionId}/ndvi_entries/{ndviEntryId}",
+        "definition": {
+          "entityName": "NDVIEntry",
+          "schema": {
+            "$ref": "#/backend/entities/NDVIEntry"
+          },
+          "description": "Stores NDVI entries for each region. Region ID is included in each document for query efficiency. NDVI Entry ID is used as document ID.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The ID of the region this NDVI entry belongs to."
+            },
+            {
+              "name": "ndviEntryId",
+              "description": "Unique identifier for the NDVI entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/regions/{regionId}/bloom_events/{bloomEventId}",
+        "definition": {
+          "entityName": "BloomEvent",
+          "schema": {
+            "$ref": "#/backend/entities/BloomEvent"
+          },
+          "description": "Stores bloom events (historical and predicted) for each region. Region ID is included in each document for query efficiency. Bloom Event ID is used as document ID.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The ID of the region this bloom event belongs to."
+            },
+            {
+              "name": "bloomEventId",
+              "description": "Unique identifier for the bloom event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/regions/{regionId}/climate_data/{climateDataId}",
+        "definition": {
+          "entityName": "ClimateData",
+          "schema": {
+            "$ref": "#/backend/entities/ClimateData"
+          },
+          "description": "Stores climate data from NASA POWER API for each region. Region ID is included in each document for query efficiency. Climate Data ID is used as document ID.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The ID of the region this climate data belongs to."
+            },
+            {
+              "name": "climateDataId",
+              "description": "Unique identifier for the climate data entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/contact_messages/{contactMessageId}",
+        "definition": {
+          "entityName": "ContactMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ContactMessage"
+          },
+          "description": "Stores contact messages submitted through the contact form. Contact Message ID is used as document ID.",
+          "params": [
+            {
+              "name": "contactMessageId",
+              "description": "Unique identifier for the contact message."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to optimize data access for the BloomWatch application, focusing on efficient querying and scalability. It leverages structural segregation to maintain a homogeneous security posture across collections and ensures Authorization Independence via denormalization where applicable. The structure allows for secure list operations using path-based ownership for user-generated content (contact messages) and collection-based access control for global data (regions, NDVI entries, bloom events, and climate data).  Each data point contains a regionId, enabling efficient queries for all data associated with a particular region."
+  }
+}
