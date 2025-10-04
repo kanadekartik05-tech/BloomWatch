@@ -13,7 +13,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { ClimateDataOutputSchema } from './types';
 
-const PredictNextBloomDateInputSchema = z.object({
+export const PredictNextBloomDateInputSchema = z.object({
   regionName: z.string().describe('The name of the region.'),
   lat: z.number().describe('The latitude of the region.'),
   lon: z.number().describe('The longitude of the region.'),
@@ -29,7 +29,7 @@ const PredictNextBloomDateInputSchema = z.object({
 export type PredictNextBloomDateInput = z.infer<typeof PredictNextBloomDateInputSchema>;
 
 // Add ndviData to the output so we can chart it in the comparison view
-const PredictNextBloomDateOutputSchema = z.object({
+export const PredictNextBloomDateOutputSchema = z.object({
   predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-MM-DD).'),
   predictionJustification: z.string().describe('A brief justification for the prediction date based on the provided data.'),
   ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
