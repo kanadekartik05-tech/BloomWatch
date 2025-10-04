@@ -22,7 +22,9 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
     const [isPending, startTransition] = useTransition();
     const [predictions, setPredictions] = useState<RegionPrediction[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [displayRegions, setDisplayRegions] = useState<(City | Region)[]>(initialRegions);
+    const [displayRegions, setDisplayRegions] = useState<(City | Region)[]>([]);
+    const [selectedCityValue, setSelectedCityValue] = useState<string>("");
+
 
     const cityOptions = useMemo(() => {
         const allCities: { label: string, value: string, city: City }[] = [];
@@ -82,6 +84,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
         const selected = cityOptions.find(opt => opt.value === value);
         if (selected) {
             setDisplayRegions(prev => [...prev, selected.city]);
+            setSelectedCityValue(""); // Clear combobox after selection
         }
     }
 
@@ -129,6 +132,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                 <CardContent>
                     <Combobox
                         options={cityOptions}
+                        value={selectedCityValue}
                         onChange={handleAddCity}
                         placeholder="Search and add a city..."
                         searchPlaceholder="Type to search for a city..."
@@ -137,11 +141,20 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                 </CardContent>
             </Card>
 
-            {isPending && predictions.length === 0 && (
+            {isPending && predictions.length === 0 && displayRegions.length > 0 && (
                 <div className="flex h-64 w-full items-center justify-center rounded-lg border border-dashed">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Loader className="h-6 w-6 animate-spin" />
                         <p>Loading global predictions...</p>
+                    </div>
+                </div>
+            )}
+            
+            {displayRegions.length === 0 && !isPending && (
+                <div className="flex h-64 w-full items-center justify-center rounded-lg border border-dashed">
+                    <div className="text-center text-muted-foreground">
+                        <h3 className="text-lg font-semibold">Your Dashboard is Empty</h3>
+                        <p>Use the search box above to add cities and monitor their bloom predictions.</p>
                     </div>
                 </div>
             )}
@@ -237,3 +250,5 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
         </div>
     );
 }
+
+    
