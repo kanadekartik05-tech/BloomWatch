@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect, useTransition, useMemo } from 'react';
-import type { State, Country } from '@/lib/geodata';
+import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize, Wand2, Flower, Sprout, PersonStanding } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getAnalysisForCity } from '../actions';
+import { getAnalysisForCity, getBloomPredictionForCity } from '../actions';
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +17,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { cn } from '@/lib/utils';
 
 type StateInfoPanelProps = {
@@ -46,10 +47,15 @@ const vegetationChartConfig: ChartConfig = {
 
 
 export function StateInfoPanel({ state, country, onBackToCountries, onClose }: StateInfoPanelProps) {
-    const [isPending, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
+    const [isAnalysisPending, startAnalysisTransition] = useTransition();
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
     const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
+
+    const [isAIPending, startAITransition] = useTransition();
+    const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
+    const [predictionError, setPredictionError] = useState<string | null>(null);
+    
     const [isFullScreen, setIsFullScreen] = useState(false);
 
     const representativeCity = useMemo(() => {
@@ -59,9 +65,11 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
     }, [state]);
 
     useEffect(() => {
-        setError(null);
+        setAnalysisError(null);
         setClimateData(null);
         setVegetationData(null);
+        setPrediction(null);
+        setPredictionError(null);
 
         if (!representativeCity) {
             if (state) {
@@ -70,17 +78,34 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
             return;
         }
 
-        startTransition(async () => {
+        startAnalysisTransition(async () => {
             const result = await getAnalysisForCity(representativeCity);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
             } else {
-                setError(result.error);
+                setAnalysisError(result.error);
             }
         });
 
     }, [representativeCity, state]);
+    
+    const handlePredict = () => {
+        if (!representativeCity) return;
+        
+        startAITransition(async () => {
+          setPrediction(null);
+          setPredictionError(null);
+          
+          const result = await getBloomPredictionForCity(representativeCity);
+    
+          if (result.success && result.data) {
+            setPrediction(result.data);
+          } else {
+            setPredictionError(result.error || 'An unknown error occurred.');
+          }
+        });
+      };
 
 
   return (
@@ -125,22 +150,22 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
             isFullScreen && "h-full"
         )}>
             
-            {isPending && (
+            {isAnalysisPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
                     <Loader className="h-5 w-5 animate-spin" />
                     <span>Fetching real-time analysis...</span>
                 </div>
             )}
 
-            {error && !isPending && (
+            {analysisError && !isAnalysisPending && (
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Analysis Failed</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{analysisError}</AlertDescription>
                 </Alert>
             )}
             
-            {!isPending && !error && (
+            {!isAnalysisPending && !analysisError && (
                 <>
                     <div className="space-y-2">
                         <h3 className="flex items-center gap-2 text-lg font-semibold">
@@ -190,6 +215,63 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                             <p className="text-sm text-muted-foreground">No climate data available.</p>
                          )}
                     </div>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>AI Prediction</CardTitle>
+                            <CardDescription>Generate an AI-powered prediction for the next bloom season.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={handlePredict} disabled={isAIPending || isAnalysisPending || !vegetationData || !representativeCity}>
+                                {isAIPending ? (
+                                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Wand2 className="mr-2 h-4 w-4" />
+                                )}
+                                Predict Next Blossom Season
+                            </Button>
+                            {isAIPending && (
+                                <div className="mt-4 flex items-center text-sm text-muted-foreground">
+                                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                                    Analyzing data...
+                                </div>
+                            )}
+                            {predictionError && !isAIPending && (
+                                 <Alert variant="destructive" className="mt-4">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Prediction Failed</AlertTitle>
+                                    <AlertDescription>{predictionError}</AlertDescription>
+                                </Alert>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {prediction && !isAIPending && (
+                        <Card className="shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-xl font-bold text-primary">
+                                    Predicted Bloom Date: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                </CardTitle>
+                                <CardDescription>{prediction.predictionJustification}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
+
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.humanImpact}</p>
+
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </>
             )}
         </CardContent>
