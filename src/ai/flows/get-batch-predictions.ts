@@ -9,7 +9,6 @@ import { ai } from '@/ai/genkit';
 import { getNdviData } from './get-ndvi-data';
 import { getClimateData } from './get-climate-data';
 import { predictNextBloomDate } from './predict-next-bloom-date';
-import type { Region } from '@/lib/data';
 import { 
     type ClimateDataInput, 
     type SinglePredictionResult,
@@ -17,6 +16,7 @@ import {
     type BatchPredictionInput,
     BatchPredictionOutputSchema,
     type BatchPredictionOutput,
+    type RegionSchemaType,
 } from './types';
 
 
@@ -27,7 +27,7 @@ export async function getBatchPredictions(input: BatchPredictionInput): Promise<
 
 // Helper function to process a single region.
 // It fetches data and then gets a prediction.
-async function processRegion(region: Pick<Region, 'name'|'lat'|'lon'|'latest_bloom'>): Promise<SinglePredictionResult> {
+async function processRegion(region: RegionSchemaType): Promise<SinglePredictionResult> {
     try {
          const climateInput: ClimateDataInput = { lat: region.lat, lon: region.lon };
 
@@ -45,7 +45,7 @@ async function processRegion(region: Pick<Region, 'name'|'lat'|'lon'|'latest_blo
             regionName: region.name,
             lat: region.lat,
             lon: region.lon,
-            ndviData: ndviResult.map(d => ({ month: d.month, value: d.value })),
+            ndviData: ndviResult.map(d => ({ month: d.month, value: d.value, date: d.date })),
             latestBloomDate: region.latest_bloom,
             climateData: climateResult,
         };

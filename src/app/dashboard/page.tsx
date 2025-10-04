@@ -12,10 +12,10 @@ export default function DashboardPage() {
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold font-headline">Global Bloom Dashboard</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-          A real-time overview of predicted flowering events and vegetation health across key regions.
+          A real-time overview of predicted flowering events and vegetation health across key regions. Add any city to customize your view.
         </p>
       </div>
-      <DashboardView regions={regions} />
+      <DashboardView initialRegions={regions} />
     </div>
   );
 }
