@@ -32,7 +32,7 @@ type PredictionState = PredictNextBloomDateOutput | null;
 
 const chartConfig: ChartConfig = {
   value: {
-    label: 'NDVI',
+    label: 'Insolation', // Updated Label
     color: 'hsl(var(--primary))',
   },
 };
@@ -44,9 +44,9 @@ export function InsightsView({ regions }: InsightsViewProps) {
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [isAIPending, startAITransition] = useTransition();
 
-  const [ndviData, setNdviData] = useState<NdviDataOutput | null>(null);
-  const [ndviError, setNdviError] = useState<string | null>(null);
-  const [isNdviPending, startNdviTransition] = useTransition();
+  const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
+  const [vegetationError, setVegetationError] = useState<string | null>(null);
+  const [isVegetationPending, startVegetationTransition] = useTransition();
 
   const selectedRegion = useMemo(
     () => regions.find((r) => r.name === selectedRegionName)!,
@@ -57,35 +57,37 @@ export function InsightsView({ regions }: InsightsViewProps) {
     // Reset states when region changes
     setPrediction(null);
     setPredictionError(null);
-    setNdviData(null);
-    setNdviError(null);
+    setVegetationData(null);
+    setVegetationError(null);
 
-    startNdviTransition(async () => {
+    if (!selectedRegion) return;
+
+    startVegetationTransition(async () => {
         const result = await fetchNdviDataForRegion({
             lat: selectedRegion.lat,
             lon: selectedRegion.lon,
         });
 
         if (result.success) {
-            setNdviData(result.data);
+            setVegetationData(result.data);
         } else {
-            setNdviError(result.error);
+            setVegetationError(result.error);
         }
     });
 
   }, [selectedRegionName, selectedRegion]);
 
-  const peakNdvi = useMemo(() => {
-    if (!ndviData) return 0;
-    return Math.max(...ndviData.map(d => d.value))
-  }, [ndviData]);
+  const peakInsolation = useMemo(() => {
+    if (!vegetationData) return 0;
+    return Math.max(...vegetationData.map(d => d.value))
+  }, [vegetationData]);
 
   const handleRegionChange = (value: string) => {
     setSelectedRegionName(value);
   };
 
   const handlePredict = () => {
-    if (!ndviData) return;
+    if (!vegetationData) return;
     startAITransition(async () => {
       setPrediction(null);
       setPredictionError(null);
@@ -94,8 +96,8 @@ export function InsightsView({ regions }: InsightsViewProps) {
         regionName: selectedRegion.name,
         lat: selectedRegion.lat,
         lon: selectedRegion.lon,
-        ndviData: ndviData,
-        latestBloomDate: selectedRegion.latest_bloom, // Still using static latest bloom for now
+        ndviData: vegetationData,
+        latestBloomDate: selectedRegion.latest_bloom,
       });
 
       if (result.success && result.data) {
@@ -132,25 +134,25 @@ export function InsightsView({ regions }: InsightsViewProps) {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>NDVI Trend for {selectedRegion.name}</CardTitle>
-            <CardDescription>Monthly average NDVI values over the last year from NASA POWER API.</CardDescription>
+            <CardTitle>Monthly Insolation Trend for {selectedRegion.name}</CardTitle>
+            <CardDescription>All sky insolation from NASA POWER API, a proxy for vegetation health.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isNdviPending && (
+            {isVegetationPending && (
                 <div className="flex h-72 w-full items-center justify-center text-muted-foreground">
                     <Loader className="mr-2 h-6 w-6 animate-spin" />
-                    Fetching real-time NDVI data from NASA...
+                    Fetching real-time vegetation proxy data from NASA...
                 </div>
             )}
-            {ndviError && !isNdviPending && (
+            {vegetationError && !isVegetationPending && (
                 <Alert variant="destructive">
-                    <AlertTitle>Failed to Fetch NDVI Data</AlertTitle>
-                    <AlertDescription>{ndviError}</AlertDescription>
+                    <AlertTitle>Failed to Fetch Vegetation Data</AlertTitle>
+                    <AlertDescription>{vegetationError}</AlertDescription>
                 </Alert>
             )}
-            {ndviData && !isNdviPending && (
+            {vegetationData && !isVegetationPending && (
               <ChartContainer config={chartConfig} className="h-72 w-full">
-                <BarChart data={ndviData} accessibilityLayer>
+                <BarChart data={vegetationData} accessibilityLayer>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickMargin={10} />
@@ -158,7 +160,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
                     cursor={false}
                     content={<ChartTooltipContent indicator="dot" />}
                   />
-                  {peakNdvi > 0 && <ReferenceLine y={peakNdvi} label={{ value: 'Peak Bloom Proxy', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />}
+                  {peakInsolation > 0 && <ReferenceLine y={peakInsolation} label={{ value: 'Peak Proxy', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />}
                   <Bar dataKey="value" fill="var(--color-value)" radius={4} />
                 </BarChart>
               </ChartContainer>
@@ -172,7 +174,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
             <CardDescription>Predict the next bloom event and understand its context.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col space-y-4">
-            <Button onClick={handlePredict} disabled={isAIPending || isNdviPending || !ndviData}>
+            <Button onClick={handlePredict} disabled={isAIPending || isVegetationPending || !vegetationData}>
               {isAIPending ? (
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
               ) : (

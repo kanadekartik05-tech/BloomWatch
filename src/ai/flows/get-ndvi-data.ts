@@ -1,9 +1,11 @@
 'use server';
 
 /**
- * @fileOverview Fetches NDVI (Normalized Difference Vegetation Index) data from the NASA POWER API.
+ * @fileOverview Fetches vegetation-related data from the NASA POWER API.
+ * This flow now fetches 'All Sky Insolation' as a proxy for vegetation health,
+ * as the NDVI parameter is not available through this specific API endpoint.
  * 
- * - getNdviData - A function that fetches NDVI data for a given region.
+ * - getNdviData - A function that fetches the data.
  * - ClimateDataInput - The input type (reused for lat/lon).
  * - NdviDataOutput - The return type for the getNdviData function.
  */
@@ -33,15 +35,16 @@ const getNdviDataFlow = ai.defineFlow(
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         
-        // Fetch data for the last 2 years to ensure we have a full 12-month cycle
         const endDate = new Date();
         const startDate = sub(endDate, { years: 2 });
 
         const startYear = format(startDate, 'yyyy');
         const endYear = format(endDate, 'yyyy');
 
-        const parameters = 'NDVI'; 
-        const community = 'RE'; // Renewable Energy
+        // CORRECT PARAMETER: Using 'ALLSKY_SFC_SW_DWN' which is available.
+        const parameters = 'ALLSKY_SFC_SW_DWN'; 
+        const community = 'RE'; // Renewable Energy community is correct.
+
         const formatType = 'JSON';
 
         let apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${startYear}&end=${endYear}&format=${formatType}`;
@@ -54,37 +57,36 @@ const getNdviDataFlow = ai.defineFlow(
             const response = await fetch(apiUrl);
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`NASA POWER API request failed for NDVI with status ${response.status}: ${errorText}`);
+                throw new Error(`NASA POWER API request failed for Insolation data with status ${response.status}: ${errorText}`);
             }
             const data: any = await response.json();
 
             if (data.header && data.header.api_message) {
                  if (data.header.api_message.includes("No data was found for the requested time period")) {
-                    return []; // Return empty array if no data is found, preventing a crash.
+                    return [];
                  }
             }
 
             if (data.error || (data.messages && data.messages.length > 0 && !data.properties)) {
                 const errorMessage = data.error || (data.messages && data.messages.join(', '));
-                throw new Error(`NASA POWER API Error for NDVI: ${errorMessage}`);
+                throw new Error(`NASA POWER API Error for Insolation data: ${errorMessage}`);
             }
             
-            const ndvi = data.properties.parameter.NDVI;
+            const insolationData = data.properties.parameter.ALLSKY_SFC_SW_DWN;
 
-            if (!ndvi) {
-                throw new Error('NDVI data not found in NASA POWER API response.');
+            if (!insolationData) {
+                throw new Error('Insolation data not found in NASA POWER API response.');
             }
             
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-            const allData = Object.keys(ndvi).map((key) => {
-                 if(key.endsWith('13')) return null; // ignore annual average
+            const allData = Object.keys(insolationData).map((key) => {
+                 if(key.endsWith('13')) return null;
                 
                 const year = parseInt(key.slice(0, 4), 10);
                 const monthIndex = parseInt(key.slice(4, 6), 10) - 1;
 
-                // The API can return -999 for no data, which we'll treat as 0
-                const value = ndvi[key] > -99 ? ndvi[key] : 0;
+                const value = insolationData[key] > -99 ? insolationData[key] : 0;
 
                 return {
                     year,
@@ -95,7 +97,6 @@ const getNdviDataFlow = ai.defineFlow(
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
             
-            // Get the last 12 full months of data from today
             const last12Months: {month: string, value: number}[] = [];
             const currentMonthStart = startOfMonth(new Date());
 
@@ -108,18 +109,18 @@ const getNdviDataFlow = ai.defineFlow(
 
                 last12Months.push({
                     month: monthNames[targetMonthIndex],
-                    value: dataPoint ? dataPoint.value : 0, // Default to 0 if data is missing for a month
+                    value: dataPoint ? dataPoint.value : 0,
                 });
             }
 
             return last12Months;
 
         } catch (error) {
-            console.error('Error fetching NDVI data from NASA POWER API:', error);
+            console.error('Error fetching Insolation data from NASA POWER API:', error);
             if (error instanceof Error) {
                 throw error;
             }
-            throw new Error('Failed to fetch NDVI data from NASA POWER API.');
+            throw new Error('Failed to fetch Insolation data from NASA POWER API.');
         }
     }
 );

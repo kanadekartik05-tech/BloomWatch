@@ -27,13 +27,13 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
     try {
         const result = await getNdviData(input);
         if (result.length === 0) {
-            return { success: false, error: "No NDVI data was found for the requested time period. The location may be over a large body of water or have other data availability issues." };
+            return { success: false, error: "No vegetation data was found for the requested time period. The location may be over a large body of water or have other data availability issues." };
         }
         return { success: true, data: result };
     } catch (error) {
-        console.error("Error getting NDVI data:", error);
+        console.error("Error getting vegetation data:", error);
         
-        let errorMessage = "Could not fetch NDVI data.";
+        let errorMessage = "Could not fetch vegetation data.";
         if (error instanceof Error) {
             errorMessage = error.message;
         }
@@ -44,7 +44,7 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 
 
 // This combines fetching climate data and getting a prediction into one action.
-export async function getEnhancedBloomPrediction(input: Omit<PredictNextBloomDateInput, 'climateData'>): Promise<PredictionResult> {
+export async function getEnhancedBloomPrediction(input: Omit<PredictNextBloomDateInput, 'climateData' | 'ndviData'> & { ndviData: NdviDataOutput }): Promise<PredictionResult> {
     try {
         // 1. Fetch climate data first
         const climateInput: ClimateDataInput = { lat: input.lat, lon: input.lon };
