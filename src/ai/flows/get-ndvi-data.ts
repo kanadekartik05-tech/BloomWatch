@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch';
-import { sub, format, getYear, getMonth, addMonths, startOfMonth } from 'date-fns';
+import { sub, format, getYear, getMonth, startOfMonth } from 'date-fns';
 import { ClimateDataInputSchema } from './types';
 
 const NdviDataOutputSchema = z.array(z.object({
@@ -64,7 +64,7 @@ const getNdviDataFlow = ai.defineFlow(
                  }
             }
 
-            if (data.error || (data.messages && data.messages.length > 0)) {
+            if (data.error || (data.messages && data.messages.length > 0 && !data.properties)) {
                 const errorMessage = data.error || (data.messages && data.messages.join(', '));
                 throw new Error(`NASA POWER API Error for NDVI: ${errorMessage}`);
             }

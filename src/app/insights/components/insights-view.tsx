@@ -18,18 +18,17 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { getEnhancedBloomPrediction } from '../actions';
+import { getEnhancedBloomPrediction, fetchNdviDataForRegion } from '../actions';
 import { Loader, Wand2, PersonStanding, Sprout, Flower } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
-import type { NDVIReading } from '@/lib/data';
+import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 
 type InsightsViewProps = {
   regions: Region[];
 };
 
 type PredictionState = PredictNextBloomDateOutput | null;
-type NdviDataState = NDVIReading[] | null;
 
 const chartConfig: ChartConfig = {
   value: {
@@ -40,22 +39,41 @@ const chartConfig: ChartConfig = {
 
 export function InsightsView({ regions }: InsightsViewProps) {
   const [selectedRegionName, setSelectedRegionName] = useState(regions[0].name);
-  const [prediction, setPrediction] = useState<PredictionState>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isAIPending, startAITransition] = useTransition();
   
+  const [prediction, setPrediction] = useState<PredictionState>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [isAIPending, startAITransition] = useTransition();
+
+  const [ndviData, setNdviData] = useState<NdviDataOutput | null>(null);
+  const [ndviError, setNdviError] = useState<string | null>(null);
+  const [isNdviPending, startNdviTransition] = useTransition();
+
   const selectedRegion = useMemo(
     () => regions.find((r) => r.name === selectedRegionName)!,
     [regions, selectedRegionName]
   );
   
-  const ndviData: NdviDataState = useMemo(() => selectedRegion.ndvi, [selectedRegion]);
-
   useEffect(() => {
-    // Reset prediction and errors when region changes
+    // Reset states when region changes
     setPrediction(null);
-    setError(null);
-  }, [selectedRegionName]);
+    setPredictionError(null);
+    setNdviData(null);
+    setNdviError(null);
+
+    startNdviTransition(async () => {
+        const result = await fetchNdviDataForRegion({
+            lat: selectedRegion.lat,
+            lon: selectedRegion.lon,
+        });
+
+        if (result.success) {
+            setNdviData(result.data);
+        } else {
+            setNdviError(result.error);
+        }
+    });
+
+  }, [selectedRegionName, selectedRegion]);
 
   const peakNdvi = useMemo(() => {
     if (!ndviData) return 0;
@@ -70,20 +88,20 @@ export function InsightsView({ regions }: InsightsViewProps) {
     if (!ndviData) return;
     startAITransition(async () => {
       setPrediction(null);
-      setError(null);
+      setPredictionError(null);
       
       const result = await getEnhancedBloomPrediction({
         regionName: selectedRegion.name,
         lat: selectedRegion.lat,
         lon: selectedRegion.lon,
         ndviData: ndviData,
-        latestBloomDate: selectedRegion.latest_bloom,
+        latestBloomDate: selectedRegion.latest_bloom, // Still using static latest bloom for now
       });
 
       if (result.success && result.data) {
         setPrediction(result.data);
       } else {
-        setError(result.error || 'An unknown error occurred.');
+        setPredictionError(result.error || 'An unknown error occurred.');
       }
     });
   };
@@ -115,10 +133,22 @@ export function InsightsView({ regions }: InsightsViewProps) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>NDVI Trend for {selectedRegion.name}</CardTitle>
-            <CardDescription>Monthly average NDVI values over the last year from sample data.</CardDescription>
+            <CardDescription>Monthly average NDVI values over the last year from NASA POWER API.</CardDescription>
           </CardHeader>
           <CardContent>
-            {ndviData && (
+            {isNdviPending && (
+                <div className="flex h-72 w-full items-center justify-center text-muted-foreground">
+                    <Loader className="mr-2 h-6 w-6 animate-spin" />
+                    Fetching real-time NDVI data from NASA...
+                </div>
+            )}
+            {ndviError && !isNdviPending && (
+                <Alert variant="destructive">
+                    <AlertTitle>Failed to Fetch NDVI Data</AlertTitle>
+                    <AlertDescription>{ndviError}</AlertDescription>
+                </Alert>
+            )}
+            {ndviData && !isNdviPending && (
               <ChartContainer config={chartConfig} className="h-72 w-full">
                 <BarChart data={ndviData} accessibilityLayer>
                   <CartesianGrid vertical={false} />
@@ -142,7 +172,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
             <CardDescription>Predict the next bloom event and understand its context.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col space-y-4">
-            <Button onClick={handlePredict} disabled={isAIPending || !ndviData}>
+            <Button onClick={handlePredict} disabled={isAIPending || isNdviPending || !ndviData}>
               {isAIPending ? (
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -158,10 +188,10 @@ export function InsightsView({ regions }: InsightsViewProps) {
                 </div>
             )}
             
-            {error && !prediction && !isAIPending && ndviData &&(
+            {predictionError && !isAIPending &&(
                 <Alert variant="destructive">
                     <AlertTitle>Prediction Failed</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{predictionError}</AlertDescription>
                 </Alert>
             )}
           </CardContent>
