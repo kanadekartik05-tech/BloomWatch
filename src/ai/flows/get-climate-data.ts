@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch';
-import { subYears, format } from 'date-fns';
+import { subYears, format, getYear, getMonth } from 'date-fns';
 import { ClimateDataInputSchema, ClimateDataOutputSchema, type ClimateDataOutput, type ClimateDataInput } from './types';
 
 
@@ -73,18 +73,49 @@ const getClimateDataFlow = ai.defineFlow(
             
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-            const result: ClimateDataOutput = Object.keys(t2m).map((key) => {
-                const yearMonth = key.slice(0, 6); // YYYYMM
+            const allData = Object.keys(t2m).map((key) => {
                  if(key.endsWith('13')) return null; // ignore annual average
-
-                const monthIndex = parseInt(yearMonth.slice(4, 6), 10) - 1;
+                
+                const year = parseInt(key.slice(0, 4), 10);
+                const monthIndex = parseInt(key.slice(4, 6), 10) - 1;
 
                 return {
+                    year,
                     month: monthNames[monthIndex],
+                    monthIndex,
                     temperature: t2m[key],
                     rainfall: prectotcorr[key],
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
+
+            // Filter to get the last 12 months of data
+            const currentYear = getYear(endDate);
+            const currentMonthIndex = getMonth(endDate); // 0-11
+
+            const last12MonthsData = allData.filter(d => {
+                if (d.year === currentYear) {
+                    return d.monthIndex <= currentMonthIndex;
+                }
+                if (d.year === currentYear - 1) {
+                    return d.monthIndex > currentMonthIndex;
+                }
+                return false;
+            });
+            
+            // Sort the data chronologically
+            last12MonthsData.sort((a, b) => {
+                if (a.year !== b.year) {
+                    return a.year - b.year;
+                }
+                return a.monthIndex - b.monthIndex;
+            });
+
+            // Format for output
+            const result: ClimateDataOutput = last12MonthsData.map(d => ({
+                month: d.month,
+                temperature: d.temperature,
+                rainfall: d.rainfall,
+            }));
 
             return result;
 
