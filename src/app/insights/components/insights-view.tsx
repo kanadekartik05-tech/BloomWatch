@@ -19,7 +19,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { getEnhancedBloomPrediction } from '../actions';
-import { Loader, Wand2, Leaf, Bee, PersonStanding, Sprout } from 'lucide-react';
+import { Loader, Wand2, PersonStanding, Sprout, Flower } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 
@@ -164,7 +164,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                    <h3 className="font-semibold flex items-center gap-2"><Bee className="text-accent"/>Ecological Significance</h3>
+                    <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
                     <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
                 </div>
                 <div className="space-y-2">
