@@ -18,14 +18,14 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
-import { SidebarHeader, SidebarContent } from '@/components/ui/sidebar';
-import { useSidebar } from '@/components/ui/sidebar';
+
 
 type CityInfoPanelProps = {
   city: City | null;
   state: State | null;
   country: Country | null;
   onBackToStates: () => void;
+  onClose: () => void;
 };
 
 const climateChartConfig: ChartConfig = {
@@ -47,7 +47,7 @@ const vegetationChartConfig: ChartConfig = {
 };
 
 
-export function CityInfoPanel({ city, state, country, onBackToStates }: CityInfoPanelProps) {
+export function CityInfoPanel({ city, state, country, onBackToStates, onClose }: CityInfoPanelProps) {
     const [isAnalysisPending, startAnalysisTransition] = useTransition();
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
@@ -56,8 +56,6 @@ export function CityInfoPanel({ city, state, country, onBackToStates }: CityInfo
     const [isAIPending, startAITransition] = useTransition();
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
     const [predictionError, setPredictionError] = useState<string | null>(null);
-    
-    const { setOpen: setSidebarOpen } = useSidebar();
 
 
     useEffect(() => {
@@ -102,14 +100,14 @@ export function CityInfoPanel({ city, state, country, onBackToStates }: CityInfo
 
 
   return (
-    <>
-        <SidebarHeader>
+    <Card className="absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right">
+        <CardHeader>
             <div className="flex items-center justify-between">
                 <Button variant="ghost" size="sm" onClick={onBackToStates}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to States
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(false)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -119,8 +117,8 @@ export function CityInfoPanel({ city, state, country, onBackToStates }: CityInfo
             <CardDescription>
                 {state?.name}, {country?.name}
             </CardDescription>
-        </SidebarHeader>
-        <SidebarContent className="flex-1 space-y-6 p-4">
+        </CardHeader>
+        <CardContent className="flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto">
             
             {isAnalysisPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
@@ -245,7 +243,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates }: CityInfo
                     )}
                 </>
             )}
-        </SidebarContent>
-    </>
+        </CardContent>
+    </Card>
   );
 }

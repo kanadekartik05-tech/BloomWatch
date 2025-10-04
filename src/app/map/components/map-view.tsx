@@ -13,7 +13,6 @@ import { Globe, Satellite, Library, X } from 'lucide-react';
 import { ComparisonView } from './comparison-view';
 import { StateInfoPanel } from './state-info-panel';
 import { CityInfoPanel } from './city-info-panel';
-import { useSidebar } from '@/components/ui/sidebar';
 
 type MapViewProps = {
   apiKey: string;
@@ -33,8 +32,6 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [cameraState, setCameraState] = useState(INITIAL_CAMERA);
   const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
   const [mapType, setMapType] = useState<MapType>('roadmap');
-  
-  const { setOpen: setSidebarOpen } = useSidebar();
   
   const allCountries = useMemo(() => {
     const mergedData = [...geodata];
@@ -69,7 +66,6 @@ export default function MapView({ apiKey }: MapViewProps) {
   };
   
   const resetSelection = (level: 'country' | 'state' | 'city') => {
-    setSidebarOpen(false);
     if (level === 'country') {
       setSelectedCountry(null);
       setSelectedState(null);
@@ -93,8 +89,7 @@ export default function MapView({ apiKey }: MapViewProps) {
     setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
     resetSelection('state');
     setStates(country.states || []);
-    setSidebarOpen(false);
-  }, [setSidebarOpen]);
+  }, []);
 
   const handleSelectState = useCallback((state: State) => {
     if (!selectedCountry) return;
@@ -103,8 +98,7 @@ export default function MapView({ apiKey }: MapViewProps) {
     setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
     resetSelection('city');
     setCities(state.cities || []);
-    setSidebarOpen(true);
-  }, [selectedCountry, setSidebarOpen]);
+  }, [selectedCountry]);
 
   const handleToggleCompareItem = (city: City) => {
     setComparisonList(prevList => {
@@ -128,8 +122,7 @@ export default function MapView({ apiKey }: MapViewProps) {
     }
     setSelectedCity(city);
     setCameraState({ center: { lat: city.lat, lng: city.lon }, zoom: 12 });
-    setSidebarOpen(true);
-  }, [isCompareMode, setSidebarOpen]);
+  }, [isCompareMode]);
 
   const handleBackToCountries = () => {
     setViewLevel('country');
@@ -142,7 +135,6 @@ export default function MapView({ apiKey }: MapViewProps) {
     setViewLevel('state');
     setCameraState({ center: { lat: selectedCountry.lat, lng: selectedCountry.lon }, zoom: 5 });
     resetSelection('city');
-    setSidebarOpen(true);
   };
   
   const markersToDisplay = useMemo(() => {
@@ -156,7 +148,6 @@ export default function MapView({ apiKey }: MapViewProps) {
     if (isCompareMode) {
       setComparisonList([]);
     }
-    setSidebarOpen(false);
   }
 
   const handleMarkerClick = (item: any) => {
@@ -176,13 +167,6 @@ export default function MapView({ apiKey }: MapViewProps) {
   const isCityInComparison = (city: City) => {
     return comparisonList.some(item => item.name === city.name && item.lat === city.lat);
   }
-  
-  const panelState = useMemo(() => {
-    if (selectedCity) return 'city';
-    if (selectedState) return 'state';
-    return null;
-  }, [selectedState, selectedCity]);
-
 
   return (
     <>
@@ -226,20 +210,22 @@ export default function MapView({ apiKey }: MapViewProps) {
           </Button>
       </div>
 
-       {panelState === 'state' && (
+       {selectedState && !selectedCity && (
          <StateInfoPanel 
             state={selectedState} 
             country={selectedCountry}
             onBackToCountries={handleBackToCountries}
+            onClose={() => setSelectedState(null)} 
         />
        )}
 
-       {panelState === 'city' && !isCompareMode && (
+       {selectedCity && !isCompareMode && (
           <CityInfoPanel
             city={selectedCity}
             state={selectedState}
             country={selectedCountry}
             onBackToStates={handleBackToStates}
+            onClose={() => setSelectedCity(null)}
           />
        )}
       

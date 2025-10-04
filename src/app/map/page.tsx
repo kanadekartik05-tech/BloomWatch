@@ -1,6 +1,5 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Terminal } from 'lucide-react';
 import MapView from './components/map-view';
 
@@ -28,15 +27,8 @@ export default function MapPage() {
   }
 
   return (
-    <SidebarProvider>
-        <Sidebar side="right" collapsible="offcanvas">
-            <MapView apiKey={googleApiKey} />
-        </Sidebar>
-        <SidebarInset>
-            <div className="relative h-[calc(100vh-3.5rem)] w-full">
-                 <MapView apiKey={googleApiKey} />
-            </div>
-        </SidebarInset>
-    </SidebarProvider>
+    <div className="relative h-[calc(100vh-3.5rem)] w-full">
+      <MapView apiKey={googleApiKey} />
+    </div>
   );
 }

@@ -17,12 +17,12 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
-import { SidebarHeader, SidebarContent, useSidebar } from '@/components/ui/sidebar';
 
 type StateInfoPanelProps = {
   state: State | null;
   country: Country | null;
   onBackToCountries: () => void;
+  onClose: () => void;
 };
 
 const climateChartConfig: ChartConfig = {
@@ -44,13 +44,11 @@ const vegetationChartConfig: ChartConfig = {
 };
 
 
-export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoPanelProps) {
+export function StateInfoPanel({ state, country, onBackToCountries, onClose }: StateInfoPanelProps) {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
     const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
-    
-    const { setOpen: setSidebarOpen } = useSidebar();
 
     const representativeCity = useMemo(() => {
         if (!state || !state.cities || state.cities.length === 0) return null;
@@ -84,14 +82,14 @@ export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoP
 
 
   return (
-    <>
-        <SidebarHeader>
+    <Card className="absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right">
+        <CardHeader>
             <div className="flex items-center justify-between">
                 <Button variant="ghost" size="sm" onClick={onBackToCountries}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Countries
                 </Button>
-                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(false)}>
+                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -101,8 +99,8 @@ export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoP
             <CardDescription>
             High-level analysis {representativeCity ? `for the area around ${representativeCity.name}` : 'for this region'}.
             </CardDescription>
-        </SidebarHeader>
-        <SidebarContent className="flex-1 space-y-6 p-4">
+        </CardHeader>
+        <CardContent className="flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto">
             
             {isPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
@@ -121,7 +119,7 @@ export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoP
             
             {!isPending && !error && (
                 <>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <BarChart3 className="h-5 w-5 text-primary" />
                             Monthly Vegetation Trend
@@ -144,7 +142,7 @@ export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoP
                         )}
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <Thermometer className="h-5 w-5 text-destructive" />
                             <CloudRain className="h-5 w-5 text-blue-500" />
@@ -171,7 +169,7 @@ export function StateInfoPanel({ state, country, onBackToCountries }: StateInfoP
                     </div>
                 </>
             )}
-        </SidebarContent>
-    </>
+        </CardContent>
+    </Card>
   );
 }
