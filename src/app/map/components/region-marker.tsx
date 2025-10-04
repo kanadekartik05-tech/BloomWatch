@@ -1,7 +1,7 @@
 
 'use client';
 
-import { AdvancedMarker, InfoWindow } from '@vis-gl/react-google-maps';
+import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 
 type MarkerItem = {
     name: string;
