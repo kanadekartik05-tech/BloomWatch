@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch';
-import { subYears, format, getYear, getMonth } from 'date-fns';
+import { sub, format, getYear, getMonth, addMonths, startOfMonth } from 'date-fns';
 import { ClimateDataInputSchema } from './types';
 
 const NdviDataOutputSchema = z.array(z.object({
@@ -33,8 +33,9 @@ const getNdviDataFlow = ai.defineFlow(
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         
+        // Fetch data for the last 2 years to ensure we have a full 12-month cycle
         const endDate = new Date();
-        const startDate = subYears(endDate, 1);
+        const startDate = sub(endDate, { years: 2 });
 
         const startYear = format(startDate, 'yyyy');
         const endYear = format(endDate, 'yyyy');
@@ -57,8 +58,15 @@ const getNdviDataFlow = ai.defineFlow(
             }
             const data: any = await response.json();
 
-            if (data.error) {
-                throw new Error(`NASA POWER API Error for NDVI: ${data.error}`);
+            if (data.header && data.header.api_message) {
+                 if (data.header.api_message.includes("No data was found for the requested time period")) {
+                    return []; // Return empty array if no data is found, preventing a crash.
+                 }
+            }
+
+            if (data.error || (data.messages && data.messages.length > 0)) {
+                const errorMessage = data.error || (data.messages && data.messages.join(', '));
+                throw new Error(`NASA POWER API Error for NDVI: ${errorMessage}`);
             }
             
             const ndvi = data.properties.parameter.NDVI;
@@ -83,47 +91,28 @@ const getNdviDataFlow = ai.defineFlow(
                     month: monthNames[monthIndex],
                     monthIndex,
                     value: value,
+                    date: new Date(year, monthIndex)
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
             
-            const currentYear = getYear(endDate);
-            const currentMonthIndex = getMonth(endDate);
+            // Get the last 12 full months of data from today
+            const last12Months: {month: string, value: number}[] = [];
+            const currentMonthStart = startOfMonth(new Date());
 
-            const last12MonthsData = allData.filter(d => {
-                if (d.year === currentYear) {
-                    return d.monthIndex <= currentMonthIndex;
-                }
-                if (d.year === currentYear - 1) {
-                    return d.monthIndex > currentMonthIndex;
-                }
-                return false;
-            });
-            
-            last12MonthsData.sort((a, b) => {
-                const aSort = a.year * 100 + a.monthIndex;
-                const bSort = b.year * 100 + b.monthIndex;
-                if (a.monthIndex > currentMonthIndex && b.monthIndex <= currentMonthIndex) {
-                    return -1;
-                }
-                if (b.monthIndex > currentMonthIndex && a.monthIndex <= currentMonthIndex) {
-                    return 1;
-                }
-                return a.monthIndex - b.monthIndex;
-            });
-            
-            const finalSortedData = [...last12MonthsData].sort((a,b) => {
-                let aDate = new Date(a.year, a.monthIndex);
-                let bDate = new Date(b.year, b.monthIndex);
-                if (aDate < startDate) aDate.setFullYear(aDate.getFullYear() + 1);
-                if (bDate < startDate) bDate.setFullYear(bDate.getFullYear() + 1);
-                return aDate.getTime() - bDate.getTime();
-            });
+            for (let i = 11; i >= 0; i--) {
+                const targetDate = sub(currentMonthStart, { months: i });
+                const targetYear = getYear(targetDate);
+                const targetMonthIndex = getMonth(targetDate);
 
+                const dataPoint = allData.find(d => d.year === targetYear && d.monthIndex === targetMonthIndex);
 
-            return finalSortedData.map(d => ({
-                month: d.month,
-                value: d.value,
-            }));
+                last12Months.push({
+                    month: monthNames[targetMonthIndex],
+                    value: dataPoint ? dataPoint.value : 0, // Default to 0 if data is missing for a month
+                });
+            }
+
+            return last12Months;
 
         } catch (error) {
             console.error('Error fetching NDVI data from NASA POWER API:', error);
