@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
@@ -11,10 +12,15 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
 import { fetchClimateDataForRegion } from '../actions';
-import { Loader, Info } from 'lucide-react';
+import { Loader, Info, CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import { Combobox } from '@/components/ui/combobox';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 type ClimateViewProps = {
   geodata: Country[];
@@ -44,6 +50,9 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
   const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   const allCountries = useMemo(() => {
     const mergedData = [...geodata];
@@ -118,8 +127,8 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
       setSelectedCityName(cityName);
       setInfo(null);
   }, []);
-
-  useEffect(() => {
+  
+  const fetchClimateData = () => {
     if (!representativeLocation) {
         setClimateData(null);
         setError(null);
@@ -129,9 +138,14 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
     startTransition(async () => {
         setError(null);
         setClimateData(null);
+        const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
+        const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
+
         const result = await fetchClimateDataForRegion({
             lat: representativeLocation.lat,
             lon: representativeLocation.lon,
+            startDate: start,
+            endDate: end,
         });
 
         if (result.success) {
@@ -140,6 +154,16 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
             setError(result.error);
         }
     });
+  }
+
+  useEffect(() => {
+    if (representativeLocation) {
+        fetchClimateData();
+    } else {
+        setClimateData(null);
+        setError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [representativeLocation]);
 
   const cardTitle = useMemo(() => {
@@ -149,7 +173,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
   }, [selectedCity, selectedState]);
 
   const cardDescription = useMemo(() => {
-    if (selectedCity) return "Monthly average temperature and rainfall over the last year.";
+    if (selectedCity) return "Monthly average temperature and rainfall.";
     if (selectedState) return `Using data from a representative city in ${selectedState.name}.`;
     return "Select a location to see its climate data.";
   }, [selectedCity, selectedState]);
@@ -208,6 +232,62 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
             <CardDescription>{cardDescription}</CardDescription>
             </CardHeader>
             <CardContent>
+                 <div className="space-y-4 rounded-lg border p-4 mb-6">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !startDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {startDate ? format(startDate, "LLL dd, y") : <span>Start date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                disabled={{ after: endDate || new Date() }}
+                                numberOfMonths={1}
+                            />
+                            </PopoverContent>
+                        </Popover>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !endDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {endDate ? format(endDate, "LLL dd, y") : <span>End date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="single"
+                                selected={endDate}
+                                onSelect={setEndDate}
+                                disabled={{ before: startDate, after: new Date() }}
+                                numberOfMonths={1}
+                            />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <Button onClick={fetchClimateData} disabled={isPending || !representativeLocation} className="w-full">
+                        {isPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Fetch Data
+                    </Button>
+                </div>
                 {isPending && (
                     <div className="flex h-72 w-full items-center justify-center text-muted-foreground">
                         <Loader className="mr-2 h-6 w-6 animate-spin" />
