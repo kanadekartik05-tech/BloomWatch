@@ -15,6 +15,7 @@ const navItems = [
   { href: '/insights', label: 'Analysis' },
   { href: '/climate', label: 'Climate' },
   { href: '/about', label: 'About' },
+  { href: '/info', label: 'Info' },
   { href: '/contact', label: 'Contact' },
   { href: '/references', label: 'References' },
 ];
