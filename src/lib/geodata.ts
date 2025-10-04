@@ -95,7 +95,7 @@ export type City = {
         { name: 'Herat', lat: 34.5, lon: 62.0, cities: [] },
         { name: 'Jowzjan', lat: 36.75, lon: 66.0, cities: [] },
         { name: 'Kabul', lat: 34.5, lon: 69.0, cities: [] },
-        { name 'Kandahar', lat: 31.0, lon: 65.5, cities: [] },
+        { name: 'Kandahar', lat: 31.0, lon: 65.5, cities: [] },
         { name: 'Kapisa', lat: 35.0, lon: 69.5, cities: [] },
         { name: 'Khost', lat: 33.3333333, lon: 69.9166667, cities: [] },
         { name: 'Kunar', lat: 35.0, lon: 71.0, cities: [] },
@@ -116,5 +116,4 @@ export type City = {
         { name: 'Zabul', lat: 32.0, lon: 67.0, cities: [] },
       ],
     },
-    // Add all other countries similarly...
   ];
