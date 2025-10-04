@@ -72,6 +72,13 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
         if (!city) return;
 
         startAnalysisTransition(async () => {
+            setAnalysisError(null);
+            setClimateData(null);
+            setVegetationData(null);
+            setPrediction(null);
+            setPredictionError(null);
+            setSummary(null);
+            setSummaryError(null);
             const startDate = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
             const endDate = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
             const result = await getAnalysisForCity(city, startDate, endDate);
@@ -85,15 +92,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     }
 
     useEffect(() => {
-        setAnalysisError(null);
-        setClimateData(null);
-        setVegetationData(null);
-        setPrediction(null);
-        setPredictionError(null);
-        setSummary(null);
-        setSummaryError(null);
         setDate(undefined);
-
         if (city) {
             fetchAnalysisData();
         }
@@ -178,7 +177,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             isFullScreen && "h-full"
         )}>
 
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className="space-y-2">
                 <Popover>
                     <PopoverTrigger asChild>
                     <Button
@@ -215,7 +214,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                     />
                     </PopoverContent>
                 </Popover>
-                 <Button onClick={fetchAnalysisData} disabled={isAnalysisPending}>
+                 <Button onClick={fetchAnalysisData} disabled={isAnalysisPending} className="w-full">
                     {isAnalysisPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Fetch Data
                 </Button>
@@ -236,7 +235,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                 </Alert>
             )}
             
-            {!isAnalysisPending && !analysisError && (
+            {!isAnalysisPending && !analysisError && climateData && vegetationData && (
                 <>
                     <div className="space-y-4">
                         <h3 className="flex items-center gap-2 text-lg font-semibold">
