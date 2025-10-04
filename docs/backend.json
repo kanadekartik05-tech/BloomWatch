@@ -6,10 +6,6 @@
       "type": "object",
       "description": "Represents a geographical region with associated plant blooming data.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the region."
-        },
         "name": {
           "type": "string",
           "description": "Name of the region."
@@ -21,13 +17,17 @@
         "lon": {
           "type": "number",
           "description": "Longitude of the region."
+        },
+        "latest_bloom": {
+            "type": "string",
+            "format": "date"
         }
       },
       "required": [
-        "id",
         "name",
         "lat",
-        "lon"
+        "lon",
+        "latest_bloom"
       ]
     },
     "NDVIEntry": {
@@ -36,18 +36,9 @@
       "type": "object",
       "description": "Represents a single NDVI (Normalized Difference Vegetation Index) data point for a region at a specific time.",
       "properties": {
-        "id": {
+        "month": {
           "type": "string",
-          "description": "Unique identifier for the NDVI entry."
-        },
-        "regionId": {
-          "type": "string",
-          "description": "Reference to Region. (Relationship: Region 1:N NDVIEntry)"
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the NDVI measurement (ISO 8601 format).",
-          "format": "date-time"
+          "description": "Month of the NDVI reading (e.g., 'Jan', 'Feb')."
         },
         "value": {
           "type": "number",
@@ -55,9 +46,7 @@
         }
       },
       "required": [
-        "id",
-        "regionId",
-        "date",
+        "month",
         "value"
       ]
     },
@@ -156,7 +145,6 @@
         }
       },
       "required": [
-        "id",
         "name",
         "email",
         "message",
@@ -171,100 +159,27 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/regions/{regionId}",
-        "definition": {
-          "entityName": "Region",
-          "schema": {
-            "$ref": "#/backend/entities/Region"
-          },
-          "description": "Stores geographical region data. Region ID is used as document ID.",
-          "params": [
-            {
-              "name": "regionId",
-              "description": "Unique identifier for the region."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/regions/{regionId}/ndvi_entries/{ndviEntryId}",
-        "definition": {
-          "entityName": "NDVIEntry",
-          "schema": {
-            "$ref": "#/backend/entities/NDVIEntry"
-          },
-          "description": "Stores NDVI entries for each region. Region ID is included in each document for query efficiency. NDVI Entry ID is used as document ID.",
-          "params": [
-            {
-              "name": "regionId",
-              "description": "The ID of the region this NDVI entry belongs to."
+    "collections": {
+      "regions": {
+        "schema": {
+          "$ref": "#/entities/Region"
+        },
+        "description": "Stores geographical region data.",
+        "collections": {
+          "ndvi": {
+            "schema": {
+              "$ref": "#/entities/NDVIEntry"
             },
-            {
-              "name": "ndviEntryId",
-              "description": "Unique identifier for the NDVI entry."
-            }
-          ]
+            "description": "Stores NDVI entries for each region."
+          }
         }
       },
-      {
-        "path": "/regions/{regionId}/bloom_events/{bloomEventId}",
-        "definition": {
-          "entityName": "BloomEvent",
-          "schema": {
-            "$ref": "#/backend/entities/BloomEvent"
-          },
-          "description": "Stores bloom events (historical and predicted) for each region. Region ID is included in each document for query efficiency. Bloom Event ID is used as document ID.",
-          "params": [
-            {
-              "name": "regionId",
-              "description": "The ID of the region this bloom event belongs to."
-            },
-            {
-              "name": "bloomEventId",
-              "description": "Unique identifier for the bloom event."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/regions/{regionId}/climate_data/{climateDataId}",
-        "definition": {
-          "entityName": "ClimateData",
-          "schema": {
-            "$ref": "#/backend/entities/ClimateData"
-          },
-          "description": "Stores climate data from NASA POWER API for each region. Region ID is included in each document for query efficiency. Climate Data ID is used as document ID.",
-          "params": [
-            {
-              "name": "regionId",
-              "description": "The ID of the region this climate data belongs to."
-            },
-            {
-              "name": "climateDataId",
-              "description": "Unique identifier for the climate data entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/contact_messages/{contactMessageId}",
-        "definition": {
-          "entityName": "ContactMessage",
-          "schema": {
-            "$ref": "#/backend/entities/ContactMessage"
-          },
-          "description": "Stores contact messages submitted through the contact form. Contact Message ID is used as document ID.",
-          "params": [
-            {
-              "name": "contactMessageId",
-              "description": "Unique identifier for the contact message."
-            }
-          ]
-        }
+      "contact_messages": {
+        "schema": {
+          "$ref": "#/entities/ContactMessage"
+        },
+        "description": "Stores contact messages submitted through the contact form."
       }
-    ],
-    "reasoning": "The Firestore structure is designed to optimize data access for the BloomWatch application, focusing on efficient querying and scalability. It leverages structural segregation to maintain a homogeneous security posture across collections and ensures Authorization Independence via denormalization where applicable. The structure allows for secure list operations using path-based ownership for user-generated content (contact messages) and collection-based access control for global data (regions, NDVI entries, bloom events, and climate data).  Each data point contains a regionId, enabling efficient queries for all data associated with a particular region."
+    }
   }
 }

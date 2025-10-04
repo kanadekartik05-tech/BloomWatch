@@ -1,8 +1,11 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase';
+import { useFirestore } from '@/firebase';
+import { initializeFirebase } from '@/firebase';
+
 
 const ContactFormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -35,13 +38,13 @@ export async function submitContactForm(
   }
 
   try {
-    const docRef = await addDoc(collection(db, 'messages'), {
-      name: validatedFields.data.name,
-      email: validatedFields.data.email,
-      message: validatedFields.data.message,
-      createdAt: serverTimestamp(),
+    const { firestore } = initializeFirebase();
+    const collectionRef = collection(firestore, 'contact_messages');
+    await addDoc(collectionRef, {
+        ...validatedFields.data,
+        sentAt: serverTimestamp(),
     });
-    console.log('Document written with ID: ', docRef.id);
+
     return {
       message: 'Thank you for your message! We will get back to you soon.',
       success: true,
