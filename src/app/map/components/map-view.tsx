@@ -112,7 +112,12 @@ export default function MapView({ apiKey }: MapViewProps) {
     setViewLevel('city');
     setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
     resetSelection('city');
-    setCities(state.cities || []);
+    if (state.cities && state.cities.length > 0) {
+      setCities(state.cities);
+    } else {
+      setCities([]);
+      setInfo(`No city data available for ${state.name}.`);
+    }
   }, [selectedCountry]);
 
   const handleToggleCompareItem = (city: City) => {
@@ -291,3 +296,5 @@ export default function MapView({ apiKey }: MapViewProps) {
     </>
   );
 }
+
+    

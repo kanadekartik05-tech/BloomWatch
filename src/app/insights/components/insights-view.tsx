@@ -72,6 +72,14 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
   const selectedState = useMemo(() => states.find(s => s.name.toLowerCase() === selectedStateName.toLowerCase()), [states, selectedStateName]);
   const selectedCity = useMemo(() => cities.find(c => c.name.toLowerCase() === selectedCityName.toLowerCase()), [cities, selectedCityName]);
 
+  const representativeLocation = useMemo(() => {
+    if (selectedCity) return selectedCity;
+    if (selectedState && selectedState.cities && selectedState.cities.length > 0) {
+      return selectedState.cities[0];
+    }
+    return null;
+  }, [selectedCity, selectedState]);
+
 
   const resetSelection = (level: 'country' | 'state' | 'city') => {
     setPrediction(null);
@@ -122,7 +130,7 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
 
 
   useEffect(() => {
-    if (!selectedCity) {
+    if (!representativeLocation) {
       setVegetationData(null);
       setPrediction(null);
       setVegetationError(null);
@@ -137,8 +145,8 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
         setPredictionError(null);
 
         const result = await fetchNdviDataForRegion({
-            lat: selectedCity.lat,
-            lon: selectedCity.lon,
+            lat: representativeLocation.lat,
+            lon: representativeLocation.lon,
         });
 
         if (result.success) {
@@ -148,23 +156,27 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
         }
     });
 
-  }, [selectedCity]);
+  }, [representativeLocation]);
 
   const peakInsolation = useMemo(() => {
     if (!vegetationData) return 0;
     return Math.max(...vegetationData.map(d => d.value))
   }, [vegetationData]);
+  
+  const locationForAI = selectedCity || selectedState;
+  const locationNameForAI = selectedCity?.name || selectedState?.name;
+
 
   const handlePredict = () => {
-    if (!vegetationData || !selectedCity) return;
+    if (!vegetationData || !representativeLocation || !locationNameForAI) return;
     startAITransition(async () => {
       setPrediction(null);
       setPredictionError(null);
       
       const result = await getEnhancedBloomPrediction({
-        cityName: selectedCity.name,
-        lat: selectedCity.lat,
-        lon: selectedCity.lon,
+        cityName: locationNameForAI,
+        lat: representativeLocation.lat,
+        lon: representativeLocation.lon,
         ndviData: vegetationData,
       });
 
@@ -175,6 +187,19 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
       }
     });
   };
+  
+  const cardTitle = useMemo(() => {
+    if (selectedCity) return `Monthly Insolation Trend for ${selectedCity.name}`;
+    if (selectedState) return `Monthly Insolation Trend for ${selectedState.name}`;
+    return "Monthly Insolation Trend";
+  }, [selectedCity, selectedState]);
+
+  const cardDescription = useMemo(() => {
+    if (selectedCity) return "All sky insolation from NASA POWER API, a proxy for vegetation health.";
+    if (selectedState) return `Using data from a representative city in ${selectedState.name}.`;
+    return "Select a location to see its vegetation data.";
+  }, [selectedCity, selectedState]);
+
 
   return (
     <div className="space-y-8">
@@ -222,12 +247,12 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
         </CardContent>
       </Card>
       
-      {selectedCity && (
+      {(selectedState || selectedCity) && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>Monthly Insolation Trend for {selectedCity.name}</CardTitle>
-                <CardDescription>All sky insolation from NASA POWER API, a proxy for vegetation health.</CardDescription>
+                <CardTitle>{cardTitle}</CardTitle>
+                <CardDescription>{cardDescription}</CardDescription>
             </CardHeader>
             <CardContent>
                 {isVegetationPending && (
@@ -297,7 +322,7 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
         <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle className="text-2xl font-bold text-primary">
-                    Predicted Bloom Date for {selectedCity?.name}: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    Predicted Bloom Date for {locationNameForAI}: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </CardTitle>
                 <CardDescription>{prediction.predictionJustification}</CardDescription>
             </CardHeader>
@@ -321,3 +346,5 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
     </div>
   );
 }
+
+    
