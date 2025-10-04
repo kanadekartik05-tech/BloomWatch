@@ -9,7 +9,7 @@ import { geodata, allCountries as extraCountries } from '@/lib/geodata';
 import type { Country, State, City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Globe, Satellite, Library, X } from 'lucide-react';
+import { Globe, Satellite, Library, X, Info } from 'lucide-react';
 import { ComparisonView } from './comparison-view';
 import { StateInfoPanel } from './state-info-panel';
 import { CityInfoPanel } from './city-info-panel';
@@ -59,6 +59,7 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [comparisonList, setComparisonList] = useState<City[]>([]);
 
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const handleMapChange = (e: MapCameraChangedEvent) => {
     const { center, zoom } = e.detail;
@@ -84,15 +85,29 @@ export default function MapView({ apiKey }: MapViewProps) {
   }
 
   const handleSelectCountry = useCallback((country: Country) => {
+    setError(null);
+    setInfo(null);
     setSelectedCountry(country);
-    setViewLevel('state');
-    setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
-    resetSelection('state');
-    setStates(country.states || []);
+    
+    if (country.states && country.states.length > 0) {
+        setViewLevel('state');
+        setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
+        resetSelection('state');
+        setStates(country.states || []);
+    } else {
+        setInfo("Data for this country is not yet available. We are working on it!");
+        setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
+        setViewLevel('country');
+        setStates([]);
+        setCities([]);
+        setSelectedState(null);
+        setSelectedCity(null);
+    }
   }, []);
 
   const handleSelectState = useCallback((state: State) => {
     if (!selectedCountry) return;
+    setInfo(null);
     setSelectedState(state);
     setViewLevel('city');
     setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
@@ -128,6 +143,8 @@ export default function MapView({ apiKey }: MapViewProps) {
     setViewLevel('country');
     setCameraState(INITIAL_CAMERA);
     resetSelection('country');
+    setInfo(null);
+    setError(null);
   };
 
   const handleBackToStates = () => {
@@ -187,6 +204,13 @@ export default function MapView({ apiKey }: MapViewProps) {
           onBackToStates={handleBackToStates}
         />
         {error && <Alert variant="destructive" className="mt-2"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+        {info && (
+          <Alert className="mt-2">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Heads up!</AlertTitle>
+            <AlertDescription>{info}</AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <div className="absolute top-4 right-4 z-10 flex gap-2">

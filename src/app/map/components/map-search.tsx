@@ -105,7 +105,7 @@ export function MapSearch({
                         {state.name}
                     </CommandItem>
                     ))
-            ) : <CommandEmpty>No states found for this country.</CommandEmpty>}
+            ) : <CommandEmpty>We're still gathering data for this country's states. Please check back later!</CommandEmpty>}
           </CommandGroup>
         </>
       );
