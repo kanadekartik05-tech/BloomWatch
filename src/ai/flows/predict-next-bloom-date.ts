@@ -28,8 +28,11 @@ const PredictNextBloomDateInputSchema = z.object({
 export type PredictNextBloomDateInput = z.infer<typeof PredictNextBloomDateInputSchema>;
 
 const PredictNextBloomDateOutputSchema = z.object({
-  predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event.'),
-  explanation: z.string().describe('Explanation of how the bloom date was determined'),
+  predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-MM-DD).'),
+  predictionJustification: z.string().describe('A brief justification for the prediction date based on the provided data.'),
+  ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
+  potentialSpecies: z.string().describe('A list of potential plant or tree species that might be blooming in this region at this time of year, based on the geographic location.'),
+  humanImpact: z.string().describe('The potential impact of this bloom event on human activities, such as agriculture (e.g., crop flowering), tourism, or public health (e.g., pollen allergies).'),
 });
 export type PredictNextBloomDateOutput = z.infer<typeof PredictNextBloomDateOutputSchema>;
 
@@ -41,9 +44,14 @@ const predictNextBloomDatePrompt = ai.definePrompt({
   name: 'predictNextBloomDatePrompt',
   input: {schema: PredictNextBloomDateInputSchema},
   output: {schema: PredictNextBloomDateOutputSchema},
-  prompt: `You are an expert in phenology, botany, and climate science. You are skilled at predicting plant blooming events based on historical data, climate patterns, and geographic location.
+  prompt: `You are an expert in phenology, botany, and climate science. You are skilled at predicting plant blooming events and explaining their broader ecological context.
 
-Given the historical NDVI (Normalized Difference Vegetation Index) data, the latest bloom date, recent climate data, and the geographic coordinates for a specific region, predict the date of the next bloom event.
+Given the historical NDVI (Normalized Difference Vegetation Index) data, the latest bloom date, recent climate data, and the geographic coordinates for a specific region, perform the following tasks:
+1.  Predict the date of the next bloom event.
+2.  Provide a brief justification for your prediction.
+3.  Describe the ecological significance of this bloom.
+4.  Suggest potential plant species that might be blooming.
+5.  Explain the potential impact on human activities.
 
 Region Name: {{regionName}}
 Coordinates: (Lat: {{lat}}, Lon: {{lon}})
@@ -59,11 +67,12 @@ Recent Climate Data (Last 12 Months):
   {{month}}: Temp: {{temperature}}°C, Rainfall: {{rainfall}}mm
 {{/each}}
 
-Consider the patterns in the historical NDVI data, the recent climate trends, and the geographic location. Blooming events typically occur when NDVI values reach a peak. This peak is influenced by preceding climate conditions like temperature and rainfall. The latitude and longitude can help you infer the hemisphere and general climate zone.
-
-Analyze all the provided data to make a comprehensive prediction. Predict the month in which the next blooming event is most likely to occur. Provide the date and a short explanation of your reasoning, mentioning how the climate data influenced your prediction.
-
-Output the predicted next bloom date as YYYY-MM-DD.
+Analysis Instructions:
+-   **predictedNextBloomDate**: Analyze all provided data to predict the next bloom date. Blooming events typically occur when NDVI values reach a peak, influenced by preceding climate conditions. Output the date in YYYY-MM-DD format.
+-   **predictionJustification**: Briefly explain your reasoning, mentioning how the climate and NDVI data influenced your prediction.
+-   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife that depend on these flowers for food and habitat.
+-   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the time of year, list a few plant or tree species likely to be contributing to this bloom. For example, for Kyoto in April, you would mention Cherry Blossoms (Sakura).
+-   **humanImpact**: Describe the relevance of this bloom for people. Think about agriculture (e.g., fruit tree flowering), tourism (e.g., wildflower festivals), or public health (e.g., high pollen counts).
 `,
 });
 

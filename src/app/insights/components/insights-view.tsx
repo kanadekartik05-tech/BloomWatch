@@ -19,17 +19,15 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { getEnhancedBloomPrediction } from '../actions';
-import { Loader, Wand2 } from 'lucide-react';
+import { Loader, Wand2, Leaf, Bee, PersonStanding, Sprout } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 
 type InsightsViewProps = {
   regions: Region[];
 };
 
-type PredictionState = {
-  date: string;
-  explanation: string;
-} | null;
+type PredictionState = PredictNextBloomDateOutput | null;
 
 const chartConfig: ChartConfig = {
   value: {
@@ -71,10 +69,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
       });
 
       if (result.success && result.data) {
-        setPrediction({
-            date: result.data.predictedNextBloomDate,
-            explanation: result.data.explanation,
-        });
+        setPrediction(result.data);
       } else {
         setError(result.error || 'An unknown error occurred.');
       }
@@ -86,7 +81,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
       <Card>
         <CardHeader>
           <CardTitle>Region Selection</CardTitle>
-          <CardDescription>Choose a region to analyze its vegetation data.</CardDescription>
+          <CardDescription>Choose a region to analyze its vegetation data and generate AI-powered insights.</CardDescription>
         </CardHeader>
         <CardContent>
           <Select value={selectedRegionName} onValueChange={handleRegionChange}>
@@ -108,7 +103,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>NDVI Trend for {selectedRegion.name}</CardTitle>
-            <CardDescription>Monthly average NDVI values over the last year.</CardDescription>
+            <CardDescription>Monthly average NDVI values over the last year. High values often correlate with peak bloom.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-72 w-full">
@@ -120,7 +115,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
                   cursor={false}
                   content={<ChartTooltipContent indicator="dot" />}
                 />
-                <ReferenceLine y={peakNdvi} label={{ value: 'Peak Bloom', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />
+                <ReferenceLine y={peakNdvi} label={{ value: 'Peak Bloom Proxy', position: 'insideTopLeft', fill: 'hsl(var(--foreground))', dy: -10, dx: 10 }} stroke="hsl(var(--accent))" strokeDasharray="3 3" />
                 <Bar dataKey="value" fill="var(--color-value)" radius={4} />
               </BarChart>
             </ChartContainer>
@@ -129,8 +124,8 @@ export function InsightsView({ regions }: InsightsViewProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Bloom Prediction</CardTitle>
-            <CardDescription>Predict the next bloom event using AI.</CardDescription>
+            <CardTitle>AI-Powered Insights</CardTitle>
+            <CardDescription>Predict the next bloom event and understand its context.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col space-y-4">
             <Button onClick={handlePredict} disabled={isPending}>
@@ -139,32 +134,51 @@ export function InsightsView({ regions }: InsightsViewProps) {
               ) : (
                 <Wand2 className="mr-2 h-4 w-4" />
               )}
-              Predict Next Bloom
+              Generate Insights
             </Button>
+            
             {isPending && (
-                <div className="flex items-center text-sm text-muted-foreground">
+                <div className="flex items-center text-sm text-muted-foreground p-4 border rounded-lg">
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing climate and vegetation data...
+                    Analyzing climate and vegetation data to generate prediction...
                 </div>
             )}
-            {error && (
+            
+            {error && !isPending && (
                 <Alert variant="destructive">
                     <AlertTitle>Prediction Failed</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
-            {prediction && (
-                <Alert className="bg-primary/10">
-                    <Wand2 className="h-4 w-4" />
-                    <AlertTitle className="text-primary font-bold">
-                      Predicted Bloom Date: {new Date(prediction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </AlertTitle>
-                    <AlertDescription>{prediction.explanation}</AlertDescription>
-                </Alert>
-            )}
           </CardContent>
         </Card>
       </div>
+
+      {prediction && !isPending && (
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="text-2xl font-bold text-primary">
+                    Predicted Bloom Date for {selectedRegion.name}: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </CardTitle>
+                <CardDescription>{prediction.predictionJustification}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2"><Bee className="text-accent"/>Ecological Significance</h3>
+                    <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
+                    <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
+                    <p className="text-muted-foreground text-sm">{prediction.humanImpact}</p>
+
+                </div>
+            </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

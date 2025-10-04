@@ -2,7 +2,7 @@
 
 import { predictNextBloomDate, PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
 import { getClimateData } from "@/ai/flows/get-climate-data";
-import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
+import type { ClimateDataInput } from "@/ai/flows/types";
 
 
 type PredictionResult = {
