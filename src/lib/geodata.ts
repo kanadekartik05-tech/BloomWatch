@@ -1022,7 +1022,7 @@ export type City = {
   ];
   
   // A simple function to add more countries with empty states, for global coverage in UI
-  const allCountries = [
+  export const allCountries = [
     { name: 'Afghanistan', lat: 33.93911, lon: 67.709953, states: [] },
     { name: 'Albania', lat: 41.1533, lon: 20.1683, states: [] },
     { name: 'Algeria', lat: 28.0339, lon: 1.6596, states: [] },
@@ -1081,16 +1081,4 @@ export type City = {
     { name: 'Finland', lat: 61.9241, lon: 25.7482, states: [] },
     { name: 'France', lat: 46.2276, lon: 2.2137, states: [] },
   ].map(c => ({...c, states: []}));
-  
-  // Merge detailed data with the comprehensive country list
-  allCountries.forEach(country => {
-    const existingCountry = geodata.find(c => c.name === country.name);
-    if (!existingCountry) {
-        geodata.push(country);
-    }
-  });
-
-  // Sort geodata alphabetically by country name
-  geodata.sort((a, b) => a.name.localeCompare(b.name));
-  
   

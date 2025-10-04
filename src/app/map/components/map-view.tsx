@@ -5,7 +5,7 @@ import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-ma
 import { useState, useCallback, useMemo, useTransition } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
-import { geodata, type Country, type State, type City } from '@/lib/geodata';
+import { geodata as rawGeodata, type Country, type State, type City, allCountries } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getBloomPredictionForCity } from '../actions';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
@@ -30,9 +30,21 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [cameraState, setCameraState] = useState(INITIAL_CAMERA);
   const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
   const [mapType, setMapType] = useState<MapType>('roadmap');
+  
+  const geodata = useMemo(() => {
+    const mergedData = [...rawGeodata];
+    allCountries.forEach(country => {
+        const existingCountry = mergedData.find(c => c.name === country.name);
+        if (!existingCountry) {
+            mergedData.push(country);
+        }
+    });
+    mergedData.sort((a, b) => a.name.localeCompare(b.name));
+    return mergedData;
+  }, []);
 
   // Data states
-  const countries = useMemo(() => geodata, []);
+  const countries = useMemo(() => geodata, [geodata]);
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
 
