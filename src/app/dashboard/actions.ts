@@ -1,9 +1,10 @@
 'use server';
 
-import { getBatchPredictions as getBatchPredictionsFlow, BatchPredictionOutput } from "@/ai/flows/get-batch-predictions";
+import { getBatchPredictions as getBatchPredictionsFlow } from "@/ai/flows/get-batch-predictions";
+import type { BatchPredictionOutput } from "@/ai/flows/types";
 import type { Region } from "@/lib/data";
 
-export type { SinglePredictionResult } from '@/ai/flows/get-batch-predictions';
+export type { SinglePredictionResult } from '@/ai/flows/types';
 
 type BatchPredictionResult = {
     success: true;

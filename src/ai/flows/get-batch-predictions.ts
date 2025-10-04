@@ -6,46 +6,18 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
 import { getNdviData } from './get-ndvi-data';
 import { getClimateData } from './get-climate-data';
 import { predictNextBloomDate } from './predict-next-bloom-date';
 import type { Region } from '@/lib/data';
-import type { ClimateDataInput, PredictNextBloomDateOutput } from './types';
-import { PredictNextBloomDateOutputSchema } from './types';
-import type { NdviDataOutput } from './get-ndvi-data';
-
-const RegionSchema = z.object({
-  name: z.string(),
-  lat: z.number(),
-  lon: z.number(),
-  latest_bloom: z.string(),
-  // ndvi is not needed for the input, as it will be fetched
-});
-
-const BatchPredictionInputSchema = z.object({
-  regions: z.array(RegionSchema),
-});
-export type BatchPredictionInput = z.infer<typeof BatchPredictionInputSchema>;
-
-// Define a discriminated union for the result of a single prediction
-const SinglePredictionSuccessSchema = z.object({
-    success: z.literal(true),
-    data: PredictNextBloomDateOutputSchema,
-});
-const SinglePredictionFailureSchema = z.object({
-    success: z.literal(false),
-    error: z.string(),
-});
-export const SinglePredictionResultSchema = z.union([
-    SinglePredictionSuccessSchema,
-    SinglePredictionFailureSchema,
-]);
-export type SinglePredictionResult = z.infer<typeof SinglePredictionResultSchema>;
-
-
-const BatchPredictionOutputSchema = z.array(SinglePredictionResultSchema);
-export type BatchPredictionOutput = z.infer<typeof BatchPredictionOutputSchema>;
+import { 
+    type ClimateDataInput, 
+    type SinglePredictionResult,
+    BatchPredictionInputSchema,
+    type BatchPredictionInput,
+    BatchPredictionOutputSchema,
+    type BatchPredictionOutput,
+} from './types';
 
 
 export async function getBatchPredictions(input: BatchPredictionInput): Promise<BatchPredictionOutput> {

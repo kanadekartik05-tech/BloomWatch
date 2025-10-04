@@ -65,3 +65,35 @@ export const PredictNextBloomDateOutputSchema = z.object({
   ).describe('The same NDVI data that was passed as input, returned for charting purposes.'),
 });
 export type PredictNextBloomDateOutput = z.infer<typeof PredictNextBloomDateOutputSchema>;
+
+
+const RegionSchema = z.object({
+  name: z.string(),
+  lat: z.number(),
+  lon: z.number(),
+  latest_bloom: z.string(),
+});
+
+export const BatchPredictionInputSchema = z.object({
+  regions: z.array(RegionSchema),
+});
+export type BatchPredictionInput = z.infer<typeof BatchPredictionInputSchema>;
+
+// Define a discriminated union for the result of a single prediction
+const SinglePredictionSuccessSchema = z.object({
+    success: z.literal(true),
+    data: PredictNextBloomDateOutputSchema,
+});
+const SinglePredictionFailureSchema = z.object({
+    success: z.literal(false),
+    error: z.string(),
+});
+export const SinglePredictionResultSchema = z.union([
+    SinglePredictionSuccessSchema,
+    SinglePredictionFailureSchema,
+]);
+export type SinglePredictionResult = z.infer<typeof SinglePredictionResultSchema>;
+
+
+export const BatchPredictionOutputSchema = z.array(SinglePredictionResultSchema);
+export type BatchPredictionOutput = z.infer<typeof BatchPredictionOutputSchema>;
