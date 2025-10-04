@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
@@ -6,17 +7,22 @@ import type { Region } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
+import { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+
+type DynamicRegionData = Region & {
+    vegetationData?: NdviDataOutput;
+    error?: string;
+};
 
 type RegionMarkerProps = {
-  region: Region;
+  region: DynamicRegionData;
   isSelected: boolean;
   onClick: (regionName: string) => void;
 };
 
-// Updated color logic based on new spec: Green (Healthy), Orange (Moderate), Brown (Low)
 const getMarkerColor = (ndviValue: number): string => {
-  if (ndviValue > 0.6) return '#22C55E'; // Green for Healthy
-  if (ndviValue > 0.3) return '#F97316'; // Orange for Moderate
+  if (ndviValue > 5) return '#22C55E'; // Green for Healthy (High Insolation)
+  if (ndviValue > 3) return '#F97316'; // Orange for Moderate
   return '#A16207'; // Brown for Low
 };
 
@@ -29,11 +35,14 @@ const MarkerIcon = ({ color }: { color: string }) => (
 
 
 export function RegionMarker({ region, isSelected, onClick }: RegionMarkerProps) {
-  const latestNdvi = region.ndvi[region.ndvi.length - 1];
-  const markerColor = useMemo(() => getMarkerColor(latestNdvi.value), [latestNdvi.value]);
+  const latestInsolation = region.vegetationData ? region.vegetationData[region.vegetationData.length - 1] : null;
+  const markerColor = useMemo(() => {
+    if (!latestInsolation) return '#808080'; // Default gray if no data
+    return getMarkerColor(latestInsolation.value);
+  }, [latestInsolation]);
 
   const chartConfig: ChartConfig = {
-    value: { label: "NDVI", color: 'hsl(var(--primary))' },
+    value: { label: "Insolation", color: 'hsl(var(--primary))' },
   };
 
   return (
@@ -59,24 +68,29 @@ export function RegionMarker({ region, isSelected, onClick }: RegionMarkerProps)
               <CardDescription>Latest Bloom: {new Date(region.latest_bloom).toLocaleDateString()}</CardDescription>
             </CardHeader>
             <CardContent className="p-2">
-              <p className="text-sm font-medium">
-                Current NDVI: <span style={{ color: markerColor }}>{latestNdvi.value.toFixed(2)}</span>
-              </p>
-              <div className="h-32 w-full mt-2">
-                <ChartContainer config={chartConfig}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={region.ndvi} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                      <XAxis dataKey="month" fontSize={10} tickLine={false} axisLine={false} />
-                      <YAxis fontSize={10} tickLine={false} axisLine={false} />
-                      <Tooltip
-                          cursor={{fill: 'hsl(var(--muted))'}}
-                          content={<ChartTooltipContent indicator="dot" />}
-                       />
-                      <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </div>
+                {latestInsolation && <p className="text-sm font-medium">
+                    Current Insolation: <span style={{ color: markerColor }}>{latestInsolation.value.toFixed(2)}</span>
+                </p>}
+
+                {region.error && <p className="text-sm text-destructive">{region.error}</p>}
+                
+                {region.vegetationData && (
+                <div className="h-32 w-full mt-2">
+                    <ChartContainer config={chartConfig}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={region.vegetationData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                        <XAxis dataKey="month" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                        <Tooltip
+                            cursor={{fill: 'hsl(var(--muted))'}}
+                            content={<ChartTooltipContent indicator="dot" />}
+                        />
+                        <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
         </InfoWindow>
