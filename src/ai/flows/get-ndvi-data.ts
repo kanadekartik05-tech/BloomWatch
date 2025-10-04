@@ -19,7 +19,9 @@ import { ClimateDataInputSchema } from './types';
 const NdviDataOutputSchema = z.array(z.object({
     month: z.string(),
     value: z.number(),
+    date: z.string(), // Added date for sorting
 }));
+
 export type NdviDataOutput = z.infer<typeof NdviDataOutputSchema>;
 
 export async function getNdviData(input: z.infer<typeof ClimateDataInputSchema>): Promise<NdviDataOutput> {
@@ -93,11 +95,11 @@ const getNdviDataFlow = ai.defineFlow(
                     month: monthNames[monthIndex],
                     monthIndex,
                     value: value,
-                    date: new Date(year, monthIndex)
+                    date: new Date(year, monthIndex).toISOString(),
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
             
-            const last12Months: {month: string, value: number}[] = [];
+            const last12Months: {month: string, value: number, date: string}[] = [];
             const currentMonthStart = startOfMonth(new Date());
 
             for (let i = 11; i >= 0; i--) {
@@ -110,6 +112,7 @@ const getNdviDataFlow = ai.defineFlow(
                 last12Months.push({
                     month: monthNames[targetMonthIndex],
                     value: dataPoint ? dataPoint.value : 0,
+                    date: targetDate.toISOString(),
                 });
             }
 

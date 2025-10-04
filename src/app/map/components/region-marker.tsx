@@ -35,7 +35,14 @@ const MarkerIcon = ({ color }: { color: string }) => (
 
 
 export function RegionMarker({ region, isSelected, onClick }: RegionMarkerProps) {
-  const latestInsolation = region.vegetationData ? region.vegetationData[region.vegetationData.length - 1] : null;
+  const sortedVegetationData = useMemo(() => {
+    if (!region.vegetationData) return [];
+    // Clone and sort the array by date in descending order to find the latest
+    return [...region.vegetationData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [region.vegetationData]);
+  
+  const latestInsolation = sortedVegetationData.length > 0 ? sortedVegetationData[0] : null;
+
   const markerColor = useMemo(() => {
     if (!latestInsolation) return '#808080'; // Default gray if no data
     return getMarkerColor(latestInsolation.value);
