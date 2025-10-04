@@ -223,6 +223,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                         selected={date}
                         onSelect={setDate}
                         numberOfMonths={2}
+                        disabled={{ after: new Date() }}
                     />
                     </PopoverContent>
                 </Popover>
