@@ -15,6 +15,7 @@ const navItems = [
   { href: '/climate', label: 'Climate' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
+  { href: '/references', label: 'References' },
 ];
 
 export default function Header() {
