@@ -63,6 +63,8 @@ export function InsightsView({ regions }: InsightsViewProps) {
       setError(null);
       const result = await getBloomPrediction({
         regionName: selectedRegion.name,
+        lat: selectedRegion.lat,
+        lon: selectedRegion.lon,
         ndviData: selectedRegion.ndvi,
         latestBloomDate: selectedRegion.latest_bloom,
       });
