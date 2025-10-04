@@ -9,6 +9,8 @@ import { geodata, type Country, type State, type City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getBloomPredictionForCity } from '../actions';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+import { Button } from '@/components/ui/button';
+import { Globe, Satellite } from 'lucide-react';
 
 
 type MapViewProps = {
@@ -16,6 +18,7 @@ type MapViewProps = {
 };
 
 type ViewLevel = 'country' | 'state' | 'city';
+type MapType = 'roadmap' | 'satellite';
 type PredictionState = PredictNextBloomDateOutput | null;
 
 const INITIAL_CAMERA = {
@@ -26,6 +29,7 @@ const INITIAL_CAMERA = {
 export default function MapView({ apiKey }: MapViewProps) {
   const [cameraState, setCameraState] = useState(INITIAL_CAMERA);
   const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
+  const [mapType, setMapType] = useState<MapType>('roadmap');
 
   // Data states
   const countries = useMemo(() => geodata, []);
@@ -131,6 +135,10 @@ export default function MapView({ apiKey }: MapViewProps) {
     setPrediction(null);
     setPredictionError(null);
   };
+  
+  const toggleMapType = () => {
+    setMapType(current => current === 'roadmap' ? 'satellite' : 'roadmap');
+  }
 
   return (
     <APIProvider apiKey={apiKey}>
@@ -138,6 +146,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         {...cameraState}
         onCameraChanged={handleMapChange}
         mapId="bloomwatch_map"
+        mapTypeId={mapType}
         disableDefaultUI={true}
         gestureHandling={'greedy'}
         className="h-full w-full"
@@ -173,6 +182,18 @@ export default function MapView({ apiKey }: MapViewProps) {
           onBackToStates={handleBackToStates}
         />
         {error && <Alert variant="destructive" className="mt-2"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+      </div>
+
+      <div className="absolute top-4 right-4 z-10">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleMapType}
+            title={mapType === 'roadmap' ? 'Switch to Satellite View' : 'Switch to Map View'}
+            className="bg-background/80 hover:bg-background"
+          >
+              {mapType === 'roadmap' ? <Satellite className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+          </Button>
       </div>
     </APIProvider>
   );
