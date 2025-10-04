@@ -2,9 +2,8 @@
 'use client';
 
 import { AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Loader, AlertTriangle } from 'lucide-react';
+import { Loader, AlertTriangle, Flower } from 'lucide-react';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type MarkerItem = {
     name: string;
@@ -61,34 +60,40 @@ export function RegionMarker({ item, isSelected, onClick, onClose, isLoading, pr
         <InfoWindow
           position={{ lat: item.lat, lng: item.lon }}
           onCloseClick={onClose}
+          minWidth={220}
         >
-          <Card className="max-w-sm border-0 shadow-none">
-            <CardHeader className="p-2">
-                <CardTitle className="text-base">{item.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-                {isLoading && (
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <Loader className="h-4 w-4 animate-spin" />
-                        <span>Analyzing bloom data...</span>
-                    </div>
-                )}
-                {error && !isLoading && (
-                    <div className="flex items-center space-x-2 text-sm text-destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span>{error}</span>
-                    </div>
-                )}
-                {prediction && !isLoading && (
-                    <div className="space-y-2 text-sm">
-                        <p className="font-semibold">
-                            Predicted Bloom: <span className="font-normal text-primary">{new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
-                        </p>
-                        <p className="text-muted-foreground">{prediction.predictionJustification}</p>
-                    </div>
-                )}
-            </CardContent>
-          </Card>
+          <div className="p-1">
+              <h3 className="mb-2 text-lg font-bold font-headline text-foreground">{item.name}</h3>
+              
+              {isLoading && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <Loader className="h-4 w-4 animate-spin" />
+                      <span>Analyzing bloom data...</span>
+                  </div>
+              )}
+
+              {error && !isLoading && (
+                  <div className="flex items-start space-x-2 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{error}</span>
+                  </div>
+              )}
+
+              {prediction && !isLoading && (
+                  <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 font-semibold">
+                          <Flower className="h-4 w-4 text-primary" />
+                          Predicted Bloom: 
+                          <span className="font-medium text-primary">
+                            {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                          </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs italic">
+                        {prediction.predictionJustification}
+                      </p>
+                  </div>
+              )}
+          </div>
         </InfoWindow>
       )}
     </>
