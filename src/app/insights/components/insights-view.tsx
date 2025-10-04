@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useTransition, useEffect } from 'react';
@@ -21,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { getEnhancedBloomPrediction, fetchNdviDataForRegion } from '../actions';
 import { Loader, Wand2, PersonStanding, Sprout, Flower } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 
 type InsightsViewProps = {

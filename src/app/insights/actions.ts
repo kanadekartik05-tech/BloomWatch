@@ -1,6 +1,8 @@
+
 'use server';
 
-import { predictNextBloomDate, PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
+import { predictNextBloomDate } from "@/ai/flows/predict-next-bloom-date";
+import type { PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/types";
 import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import type { ClimateDataInput } from "@/ai/flows/types";
@@ -43,7 +45,7 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 }
 
 
-// This combines fetching climate data and getting a prediction into one action.
+// This combines fetching climate data and gettings a prediction into one action.
 export async function getEnhancedBloomPrediction(input: Omit<PredictNextBloomDateInput, 'climateData' | 'ndviData'> & { ndviData: NdviDataOutput }): Promise<PredictionResult> {
     try {
         // 1. Fetch climate data first

@@ -11,38 +11,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { ClimateDataOutputSchema } from './types';
+import { PredictNextBloomDateInputSchema, PredictNextBloomDateOutputSchema, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from './types';
 
-export const PredictNextBloomDateInputSchema = z.object({
-  regionName: z.string().describe('The name of the region.'),
-  lat: z.number().describe('The latitude of the region.'),
-  lon: z.number().describe('The longitude of the region.'),
-  ndviData: z.array(
-    z.object({
-      month: z.string().describe('The month of the NDVI reading.'),
-      value: z.number().describe('The NDVI value for the month.'),
-    })
-  ).describe('Historical NDVI data for the region.'),
-  latestBloomDate: z.string().describe('The most recent bloom date for the region.'),
-  climateData: ClimateDataOutputSchema.describe('Recent climate data for the region for the last 12 months.'),
-});
-export type PredictNextBloomDateInput = z.infer<typeof PredictNextBloomDateInputSchema>;
-
-// Add ndviData to the output so we can chart it in the comparison view
-export const PredictNextBloomDateOutputSchema = z.object({
-  predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-MM-DD).'),
-  predictionJustification: z.string().describe('A brief justification for the prediction date based on the provided data.'),
-  ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
-  potentialSpecies: z.string().describe('A list of potential plant or tree species that might be blooming in this region at this time of year, based on the geographic location.'),
-  humanImpact: z.string().describe('The potential impact of this bloom event on human activities, such as agriculture (e.g., crop flowering), tourism, or public health (e.g., pollen allergies).'),
-  ndviData: z.array(
-    z.object({
-      month: z.string().describe('The month of the NDVI reading.'),
-      value: z.number().describe('The NDVI value for the month.'),
-    })
-  ).describe('The same NDVI data that was passed as input, returned for charting purposes.'),
-});
-export type PredictNextBloomDateOutput = z.infer<typeof PredictNextBloomDateOutputSchema>;
 
 export async function predictNextBloomDate(input: PredictNextBloomDateInput): Promise<PredictNextBloomDateOutput> {
   return predictNextBloomDateFlow(input);

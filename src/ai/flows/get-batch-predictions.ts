@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Fetches bloom predictions for multiple regions in parallel.
@@ -8,9 +9,10 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getNdviData } from './get-ndvi-data';
 import { getClimateData } from './get-climate-data';
-import { predictNextBloomDate, PredictNextBloomDateInputSchema, PredictNextBloomDateOutputSchema } from './predict-next-bloom-date';
+import { predictNextBloomDate } from './predict-next-bloom-date';
 import type { Region } from '@/lib/data';
-import type { ClimateDataInput } from './types';
+import type { ClimateDataInput, PredictNextBloomDateOutput } from './types';
+import { PredictNextBloomDateOutputSchema } from './types';
 import type { NdviDataOutput } from './get-ndvi-data';
 
 const RegionSchema = z.object({

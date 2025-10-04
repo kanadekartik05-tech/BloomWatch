@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import type { City } from '@/lib/geodata';
 import { getBloomPredictionForCity } from '../actions';
-import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader, Flower, BarChart2 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';

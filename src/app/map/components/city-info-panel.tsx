@@ -17,7 +17,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
-import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';

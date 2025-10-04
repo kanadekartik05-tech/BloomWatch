@@ -1,7 +1,8 @@
 
 'use server';
 
-import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
+import { predictNextBloomDate } from "@/ai/flows/predict-next-bloom-date";
+import type { PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/types";
 import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
