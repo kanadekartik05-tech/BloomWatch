@@ -53,7 +53,7 @@ export const PredictNextBloomDateInputSchema = z.object({
 export type PredictNextBloomDateInput = z.infer<typeof PredictNextBloomDateInputSchema>;
 
 export const PredictNextBloomDateOutputSchema = z.object({
-  predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-DD-MM).'),
+  predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-MM-DD).'),
   predictionJustification: z.string().describe('A brief justification for the prediction date based on the provided data.'),
   ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
   potentialSpecies: z.string().describe('A list of potential plant or tree species that might be blooming in this region at this time of year, based on the geographic location.'),
