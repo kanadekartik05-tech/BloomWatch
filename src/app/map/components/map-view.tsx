@@ -2,68 +2,94 @@
 'use client';
 
 import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-maps';
-import type { Region } from '@/lib/data';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { List, Loader } from 'lucide-react';
-import { fetchNdviDataForRegion } from '@/app/insights/actions';
-import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+import { geoData, Country, State, City } from '@/lib/geodata';
 
 type MapViewProps = {
   apiKey: string;
-  regions: Region[];
 };
 
-type DynamicRegionData = Region & {
-    vegetationData?: NdviDataOutput;
-    error?: string;
-};
+type ViewLevel = 'country' | 'state' | 'city';
 
 const INITIAL_CAMERA = {
   center: { lat: 20, lng: 0 },
   zoom: 2,
 };
 
-export default function MapView({ apiKey, regions }: MapViewProps) {
-  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
+export default function MapView({ apiKey }: MapViewProps) {
   const [cameraState, setCameraState] = useState(INITIAL_CAMERA);
-  const [dynamicRegions, setDynamicRegions] = useState<DynamicRegionData[]>(regions);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchAllRegionData() {
-      setIsLoading(true);
-      const promises = regions.map(async (region) => {
-        const result = await fetchNdviDataForRegion({ lat: region.lat, lon: region.lon });
-        if (result.success) {
-          return { ...region, vegetationData: result.data };
-        } else {
-          return { ...region, error: result.error };
-        }
-      });
-      const results = await Promise.all(promises);
-      setDynamicRegions(results);
-      setIsLoading(false);
-    }
-    fetchAllRegionData();
-  }, [regions]);
-
-
-  const handleMarkerClick = useCallback((regionName: string) => {
-    setSelectedRegionName(prev => (prev === regionName ? null : regionName));
-  }, []);
+  const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [selectedState, setSelectedState] = useState<State | null>(null);
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
 
   const handleMapChange = (e: MapCameraChangedEvent) => {
     const { center, zoom } = e.detail;
     setCameraState({ center, zoom });
   };
-  
-  const handleRegionSelect = (region: Region) => {
-    setCameraState({ center: { lat: region.lat, lng: region.lon }, zoom: 8 });
-    setSelectedRegionName(region.name);
+
+  const handleSelectCountry = (country: Country) => {
+    setSelectedCountry(country);
+    setSelectedState(null);
+    setSelectedCity(null);
+    setViewLevel('state');
+    setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
   };
+
+  const handleSelectState = (state: State) => {
+    setSelectedState(state);
+    setSelectedCity(null);
+    setViewLevel('city');
+    setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
+  };
+
+  const handleSelectCity = (city: City) => {
+    setSelectedCity(city);
+    setCameraState({ center: { lat: city.lat, lng: city.lon }, zoom: 12 });
+  };
+  
+  const handleBackToCountries = () => {
+    setSelectedCountry(null);
+    setSelectedState(null);
+    setSelectedCity(null);
+    setViewLevel('country');
+    setCameraState(INITIAL_CAMERA);
+  };
+  
+  const handleBackToStates = () => {
+    if(!selectedCountry) return;
+    setSelectedState(null);
+    setSelectedCity(null);
+    setViewLevel('state');
+    setCameraState({ center: { lat: selectedCountry.lat, lng: selectedCountry.lon }, zoom: 5 });
+  };
+
+  const markersToDisplay = useMemo(() => {
+    if (viewLevel === 'country') {
+      return geoData.map(country => ({ ...country, type: 'country' as const }));
+    }
+    if (viewLevel === 'state' && selectedCountry) {
+      return selectedCountry.states.map(state => ({ ...state, type: 'state' as const }));
+    }
+    if (viewLevel === 'city' && selectedState) {
+      return selectedState.cities.map(city => ({ ...city, type: 'city' as const }));
+    }
+    return [];
+  }, [viewLevel, selectedCountry, selectedState]);
+
+  const handleMarkerClick = (item: any) => {
+    if (item.type === 'country') {
+      handleSelectCountry(item);
+    } else if (item.type === 'state') {
+      handleSelectState(item);
+    } else {
+       handleSelectCity(item);
+       setSelectedCity(item);
+    }
+  };
+
 
   return (
     <APIProvider apiKey={apiKey}>
@@ -75,48 +101,28 @@ export default function MapView({ apiKey, regions }: MapViewProps) {
         gestureHandling={'greedy'}
         className="h-full w-full"
       >
-        {dynamicRegions.map((region) => (
+        {markersToDisplay.map((item) => (
           <RegionMarker
-            key={region.name}
-            region={region}
-            isSelected={selectedRegionName === region.name}
-            onClick={handleMarkerClick}
+            key={item.name}
+            item={item}
+            onClick={() => handleMarkerClick(item)}
+            isSelected={selectedCity?.name === item.name}
           />
         ))}
       </Map>
 
-      {isLoading && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-background/80 p-2 shadow-md">
-            <div className="flex items-center text-muted-foreground">
-                <Loader className="mr-2 h-5 w-5 animate-spin" />
-                <span>Fetching live vegetation data...</span>
-            </div>
-        </div>
-      )}
-
       <div className="absolute top-4 left-4 z-10 w-full max-w-sm">
-        <MapSearch regions={regions} onSelect={handleRegionSelect} />
-      </div>
-      <div className="absolute bottom-4 right-4 z-10">
-        <Card className="w-48">
-          <CardHeader className="p-4">
-            <CardTitle className="text-base flex items-center gap-2"><List size={16}/> Legend</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0 text-sm space-y-2">
-             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#22C55E' }}></div>
-              <span>Healthy</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#F97316' }}></div>
-              <span>Moderate</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#A16207' }}></div>
-              <span>Low Veg.</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MapSearch
+            viewLevel={viewLevel}
+            countries={geoData}
+            selectedCountry={selectedCountry}
+            selectedState={selectedState}
+            onSelectCountry={handleSelectCountry}
+            onSelectState={handleSelectState}
+            onSelectCity={handleSelectCity}
+            onBackToCountries={handleBackToCountries}
+            onBackToStates={handleBackToStates}
+        />
       </div>
     </APIProvider>
   );
