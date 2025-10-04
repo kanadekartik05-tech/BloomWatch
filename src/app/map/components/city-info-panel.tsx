@@ -5,7 +5,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnalysisForCity, getBloomPredictionForCity } from '../actions';
 import {
@@ -18,6 +18,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+import { cn } from '@/lib/utils';
 
 
 type CityInfoPanelProps = {
@@ -56,6 +57,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     const [isAIPending, startAITransition] = useTransition();
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
     const [predictionError, setPredictionError] = useState<string | null>(null);
+    const [isFullScreen, setIsFullScreen] = useState(false);
 
 
     useEffect(() => {
@@ -100,16 +102,33 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
 
 
   return (
-    <Card className="absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right">
+    <Card className={cn(
+        "absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right",
+        isFullScreen && "fixed inset-0 top-14 z-50 h-[calc(100vh-3.5rem)] max-w-full animate-none rounded-none"
+    )}>
         <CardHeader>
             <div className="flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={onBackToStates}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to States
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-                    <X className="h-4 w-4" />
-                </Button>
+                {isFullScreen ? (
+                    <Button variant="ghost" size="sm" onClick={() => setIsFullScreen(false)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Map
+                    </Button>
+                ) : (
+                    <Button variant="ghost" size="sm" onClick={onBackToStates}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to States
+                    </Button>
+                )}
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFullScreen(!isFullScreen)}>
+                        <Maximize className="h-4 w-4" />
+                    </Button>
+                   {!isFullScreen && (
+                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                   )}
+                </div>
             </div>
             <CardTitle className="mt-2 text-2xl font-bold font-headline">
                 {city?.name}
@@ -118,7 +137,10 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                 {state?.name}, {country?.name}
             </CardDescription>
         </CardHeader>
-        <CardContent className="flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto">
+        <CardContent className={cn(
+            "flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto",
+            isFullScreen && "h-full"
+        )}>
             
             {isAnalysisPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
@@ -232,6 +254,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
                                     <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
+
                                 </div>
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>

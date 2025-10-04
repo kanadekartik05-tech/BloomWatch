@@ -5,7 +5,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnalysisForCity } from '../actions';
 import {
@@ -17,6 +17,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
 import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+import { cn } from '@/lib/utils';
 
 type StateInfoPanelProps = {
   state: State | null;
@@ -49,6 +50,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
     const [error, setError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
     const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
+    const [isFullScreen, setIsFullScreen] = useState(false);
 
     const representativeCity = useMemo(() => {
         if (!state || !state.cities || state.cities.length === 0) return null;
@@ -82,16 +84,34 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
 
 
   return (
-    <Card className="absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right">
+    <Card className={cn(
+        "absolute right-4 top-20 z-10 w-full max-w-sm animate-in slide-in-from-right",
+        isFullScreen && "fixed inset-0 top-14 z-50 h-[calc(100vh-3.5rem)] max-w-full animate-none rounded-none"
+    )}>
         <CardHeader>
             <div className="flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={onBackToCountries}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Countries
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-                    <X className="h-4 w-4" />
-                </Button>
+                {isFullScreen ? (
+                     <Button variant="ghost" size="sm" onClick={() => setIsFullScreen(false)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Map
+                    </Button>
+                ) : (
+                    <Button variant="ghost" size="sm" onClick={onBackToCountries}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Countries
+                    </Button>
+                )}
+                
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFullScreen(!isFullScreen)}>
+                        <Maximize className="h-4 w-4" />
+                    </Button>
+                   {!isFullScreen && (
+                     <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                        <X className="h-4 w-4" />
+                    </Button>
+                   )}
+                </div>
             </div>
             <CardTitle className="mt-2 text-2xl font-bold font-headline">
             {state?.name}, {country?.name}
@@ -100,7 +120,10 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
             High-level analysis {representativeCity ? `for the area around ${representativeCity.name}` : 'for this region'}.
             </CardDescription>
         </CardHeader>
-        <CardContent className="flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto">
+        <CardContent className={cn(
+            "flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto",
+            isFullScreen && "h-full"
+        )}>
             
             {isPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
