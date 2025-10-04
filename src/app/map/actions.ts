@@ -1,3 +1,4 @@
+
 'use server';
 
 import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
@@ -25,7 +26,7 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
         ]);
 
         if (ndviResult.length === 0) {
-            return { success: false, error: "No vegetation data was found for the requested time period. The location may be over a large body of water or have other data availability issues." };
+            return { success: false, error: "No vegetation data was found for this location. It may be over a large body of water or have other data availability issues." };
         }
 
         // We need a dummy latest bloom date. In a real scenario, this would come from a database.
@@ -46,7 +47,7 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
     } catch (error) {
         console.error("Error getting bloom prediction for city:", error);
         
-        let errorMessage = "Failed to get prediction from AI.";
+        let errorMessage = "Failed to get prediction from AI. The model may be unavailable or the location is not supported.";
         if (error instanceof Error) {
             errorMessage = error.message;
         }

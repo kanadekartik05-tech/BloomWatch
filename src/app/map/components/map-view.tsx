@@ -5,12 +5,13 @@ import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-ma
 import { useState, useCallback, useMemo, useTransition } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
-import { geodata as rawGeodata, type Country, type State, type City, allCountries } from '@/lib/geodata';
+import { geodata, type Country, type State, type City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getBloomPredictionForCity } from '../actions';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { Button } from '@/components/ui/button';
-import { Globe, Satellite } from 'lucide-react';
+import { Globe, Satellite, Library, X } from 'lucide-react';
+import { ComparisonView } from './comparison-view';
 
 
 type MapViewProps = {
@@ -26,14 +27,16 @@ const INITIAL_CAMERA = {
   zoom: 2,
 };
 
+const MAX_COMPARISON_ITEMS = 3;
+
 export default function MapView({ apiKey }: MapViewProps) {
   const [cameraState, setCameraState] = useState(INITIAL_CAMERA);
   const [viewLevel, setViewLevel] = useState<ViewLevel>('country');
   const [mapType, setMapType] = useState<MapType>('roadmap');
   
-  const geodata = useMemo(() => {
-    const mergedData = [...rawGeodata];
-    allCountries.forEach(country => {
+  const allCountries = useMemo(() => {
+    const mergedData = [...geodata.countries];
+    geodata.allCountries.forEach(country => {
         const existingCountry = mergedData.find(c => c.name === country.name);
         if (!existingCountry) {
             mergedData.push(country);
@@ -44,7 +47,6 @@ export default function MapView({ apiKey }: MapViewProps) {
   }, []);
 
   // Data states
-  const countries = useMemo(() => geodata, [geodata]);
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
 
@@ -57,6 +59,10 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [prediction, setPrediction] = useState<PredictionState>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [isAIPending, startAITransition] = useTransition();
+
+  // Comparison states
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [comparisonList, setComparisonList] = useState<City[]>([]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +97,10 @@ export default function MapView({ apiKey }: MapViewProps) {
   }, [selectedCountry]);
 
   const handleSelectCity = useCallback((city: City) => {
+    if (isCompareMode) {
+      handleToggleCompareItem(city);
+      return;
+    }
     setSelectedCity(city);
     setCameraState({ center: { lat: city.lat, lng: city.lon }, zoom: 12 });
     setPrediction(null);
@@ -105,7 +115,7 @@ export default function MapView({ apiKey }: MapViewProps) {
       }
     });
 
-  }, []);
+  }, [isCompareMode]);
 
   const handleBackToCountries = () => {
     setSelectedCountry(null);
@@ -129,8 +139,34 @@ export default function MapView({ apiKey }: MapViewProps) {
   const markersToDisplay = useMemo(() => {
     if (viewLevel === 'city') return cities.map(c => ({...c, type: 'city'}));
     if (viewLevel === 'state') return states.map(s => ({...s, type: 'state'}));
-    return countries.map(c => ({...c, type: 'country'}));
-  }, [viewLevel, countries, states, cities]);
+    return allCountries.map(c => ({...c, type: 'country'}));
+  }, [viewLevel, allCountries, states, cities]);
+
+  const handleToggleCompareMode = () => {
+    setIsCompareMode(!isCompareMode);
+    // Clear selections when exiting compare mode
+    if (isCompareMode) {
+      setComparisonList([]);
+    }
+    // Close any open info window when entering compare mode
+    if (!isCompareMode) {
+      setSelectedCity(null);
+    }
+  }
+
+  const handleToggleCompareItem = (city: City) => {
+    setComparisonList(prevList => {
+      const isAlreadyInList = prevList.some(item => item.name === city.name);
+      if (isAlreadyInList) {
+        return prevList.filter(item => item.name !== city.name);
+      }
+      if (prevList.length < MAX_COMPARISON_ITEMS) {
+        return [...prevList, city];
+      }
+      // Optional: Show a notification that the limit is reached
+      return prevList;
+    });
+  }
 
   const handleMarkerClick = (item: any) => {
      if (item.type === 'country') {
@@ -152,6 +188,10 @@ export default function MapView({ apiKey }: MapViewProps) {
     setMapType(current => current === 'roadmap' ? 'satellite' : 'roadmap');
   }
 
+  const isCityInComparison = (city: City) => {
+    return comparisonList.some(item => item.name === city.name);
+  }
+
   return (
     <APIProvider apiKey={apiKey}>
       <Map
@@ -169,7 +209,9 @@ export default function MapView({ apiKey }: MapViewProps) {
             item={item}
             onClick={() => handleMarkerClick(item)}
             onClose={handleInfoWindowClose}
-            isSelected={selectedCity?.name === item.name}
+            isSelected={selectedCity?.name === item.name && !isCompareMode}
+            isComparing={isCompareMode && item.type === 'city' && isCityInComparison(item)}
+            isCompareModeActive={isCompareMode}
             prediction={prediction}
             isLoading={isAIPending && selectedCity?.name === item.name}
             error={predictionError}
@@ -180,7 +222,7 @@ export default function MapView({ apiKey }: MapViewProps) {
       <div className="absolute top-4 left-4 z-10 w-full max-w-sm">
         <MapSearch
           viewLevel={viewLevel}
-          countries={countries}
+          countries={allCountries}
           states={states}
           cities={cities}
           loadingStates={false}
@@ -196,7 +238,16 @@ export default function MapView({ apiKey }: MapViewProps) {
         {error && <Alert variant="destructive" className="mt-2"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <Button
+            variant={isCompareMode ? "default" : "outline"}
+            size="icon"
+            onClick={handleToggleCompareMode}
+            title={isCompareMode ? 'Exit Compare Mode' : 'Enter Compare Mode'}
+            className="bg-background/80 hover:bg-background"
+          >
+              <Library className="h-5 w-5" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
@@ -207,6 +258,19 @@ export default function MapView({ apiKey }: MapViewProps) {
               {mapType === 'roadmap' ? <Satellite className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
           </Button>
       </div>
+
+      {isCompareMode && comparisonList.length > 0 && (
+         <div className="absolute bottom-4 left-4 z-10">
+            <Button onClick={() => setComparisonList([])} size="sm">
+              <X className="mr-2 h-4 w-4" />
+              Clear Comparison ({comparisonList.length})
+            </Button>
+         </div>
+      )}
+
+      {comparisonList.length > 1 && (
+        <ComparisonView cities={comparisonList} />
+      )}
     </APIProvider>
   );
 }

@@ -15,6 +15,8 @@ type MarkerItem = {
 type RegionMarkerProps = {
   item: MarkerItem;
   isSelected: boolean;
+  isComparing: boolean;
+  isCompareModeActive: boolean;
   onClick: () => void;
   onClose: () => void;
   isLoading: boolean;
@@ -22,7 +24,9 @@ type RegionMarkerProps = {
   error: string | null;
 };
 
-const getMarkerColor = (type: MarkerItem['type']): string => {
+const getMarkerColor = (type: MarkerItem['type'], isComparing: boolean): string => {
+  if (isComparing) return '#F59E0B'; // Amber for comparison items
+
   switch(type) {
     case 'country': return '#EF4444'; // Red
     case 'state': return '#F97316';   // Orange
@@ -41,9 +45,10 @@ const MarkerIcon = ({ color, type }: { color: string, type: MarkerItem['type'] }
     );
 };
 
-export function RegionMarker({ item, isSelected, onClick, onClose, isLoading, prediction, error }: RegionMarkerProps) {
+export function RegionMarker({ item, isSelected, isComparing, isCompareModeActive, onClick, onClose, isLoading, prediction, error }: RegionMarkerProps) {
 
-  const markerColor = getMarkerColor(item.type);
+  const markerColor = getMarkerColor(item.type, isComparing);
+  const cursorStyle = isCompareModeActive && item.type === 'city' ? 'copy' : 'pointer';
 
   return (
     <>
@@ -52,7 +57,10 @@ export function RegionMarker({ item, isSelected, onClick, onClose, isLoading, pr
         onClick={onClick}
         title={item.name}
       >
-        <div className="transition-transform duration-200 ease-in-out hover:scale-125">
+        <div 
+          className="transition-transform duration-200 ease-in-out hover:scale-125"
+          style={{ cursor: cursorStyle }}
+        >
             <MarkerIcon color={markerColor} type={item.type} />
         </div>
       </AdvancedMarker>

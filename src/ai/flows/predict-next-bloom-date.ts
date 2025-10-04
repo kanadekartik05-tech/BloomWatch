@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -27,12 +28,19 @@ const PredictNextBloomDateInputSchema = z.object({
 });
 export type PredictNextBloomDateInput = z.infer<typeof PredictNextBloomDateInputSchema>;
 
+// Add ndviData to the output so we can chart it in the comparison view
 const PredictNextBloomDateOutputSchema = z.object({
   predictedNextBloomDate: z.string().describe('The predicted date of the next bloom event (YYYY-MM-DD).'),
   predictionJustification: z.string().describe('A brief justification for the prediction date based on the provided data.'),
   ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
   potentialSpecies: z.string().describe('A list of potential plant or tree species that might be blooming in this region at this time of year, based on the geographic location.'),
   humanImpact: z.string().describe('The potential impact of this bloom event on human activities, such as agriculture (e.g., crop flowering), tourism, or public health (e.g., pollen allergies).'),
+  ndviData: z.array(
+    z.object({
+      month: z.string().describe('The month of the NDVI reading.'),
+      value: z.number().describe('The NDVI value for the month.'),
+    })
+  ).describe('The same NDVI data that was passed as input, returned for charting purposes.'),
 });
 export type PredictNextBloomDateOutput = z.infer<typeof PredictNextBloomDateOutputSchema>;
 
@@ -52,6 +60,7 @@ Given the historical NDVI (Normalized Difference Vegetation Index) data, the lat
 3.  Describe the ecological significance of this bloom.
 4.  Suggest potential plant species that might be blooming.
 5.  Explain the potential impact on human activities.
+6.  Return the original NDVI data in the 'ndviData' output field.
 
 Region Name: {{regionName}}
 Coordinates: (Lat: {{lat}}, Lon: {{lon}})
@@ -73,6 +82,7 @@ Analysis Instructions:
 -   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife that depend on these flowers for food and habitat.
 -   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the time of year, list a few plant or tree species likely to be contributing to this bloom. For example, for Kyoto in April, you would mention Cherry Blossoms (Sakura).
 -   **humanImpact**: Describe the relevance of this bloom for people. Think about agriculture (e.g., fruit tree flowering), tourism (e.g., wildflower festivals), or public health (e.g., high pollen counts).
+-   **ndviData**: Return the 'ndviData' array that was provided as input.
 `,
 });
 
@@ -84,6 +94,10 @@ const predictNextBloomDateFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await predictNextBloomDatePrompt(input);
+    // Ensure ndviData is passed through.
+    if (output && !output.ndviData) {
+        output.ndviData = input.ndviData;
+    }
     return output!;
   }
 );
