@@ -27,8 +27,8 @@ const getClimateDataFlow = ai.defineFlow(
     },
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
-        if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
-            throw new Error('NASA POWER API key is not configured.');
+        if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE" || apiKey === "placeholder_api_key") {
+            throw new Error('NASA POWER API key is not configured. Please get a key from NASA POWER and set the NEXT_PUBLIC_NASA_API_KEY environment variable.');
         }
 
         const endDate = new Date();
@@ -41,7 +41,7 @@ const getClimateDataFlow = ai.defineFlow(
         const community = 'RE'; // Renewable Energy
         const formatType = 'JSON';
 
-        const apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${formattedStartDate.substring(0, 6)}&end=${formattedEndDate.substring(0, 6)}&format=${formatType}`;
+        const apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${formattedStartDate.substring(0, 6)}&end=${formattedEndDate.substring(0, 6)}&format=${formatType}&api_key=${apiKey}`;
         
         try {
             const response = await fetch(apiUrl);
