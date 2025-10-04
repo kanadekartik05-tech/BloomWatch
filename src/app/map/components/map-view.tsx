@@ -266,7 +266,7 @@ export default function MapView({ apiKey }: MapViewProps) {
       <StateInfoPanel 
         state={selectedState} 
         country={selectedCountry}
-        onClose={handleBackToCountries}
+        onBackToCountries={handleBackToCountries}
       />
 
       {isCompareMode && comparisonList.length > 0 && (

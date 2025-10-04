@@ -3,8 +3,8 @@
 
 import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
 import { getClimateData } from "@/ai/flows/get-climate-data";
-import { getNdviData } from "@/ai/flows/get-ndvi-data";
-import type { ClimateDataInput } from "@/ai/flows/types";
+import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
+import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 import { City } from "@/lib/geodata";
 
 type PredictionResult = {
@@ -14,6 +14,48 @@ type PredictionResult = {
     success: false;
     error: string;
 };
+
+type CityAnalysisResult = {
+    success: true;
+    climateData: ClimateDataOutput;
+    vegetationData: NdviDataOutput;
+} | {
+    success: false;
+    error: string;
+};
+
+export async function getAnalysisForCity(city: City): Promise<CityAnalysisResult> {
+     try {
+        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon };
+
+        // Fetch vegetation and climate data in parallel
+        const [ndviResult, climateResult] = await Promise.all([
+            getNdviData(climateInput),
+            getClimateData(climateInput)
+        ]);
+
+        if (ndviResult.length === 0) {
+            return { success: false, error: "No vegetation data was found for this location." };
+        }
+
+        return {
+            success: true,
+            climateData: climateResult,
+            vegetationData: ndviResult
+        };
+
+    } catch (error) {
+        console.error("Error getting city analysis data:", error);
+        
+        let errorMessage = "Failed to fetch analysis data. The location may not be supported.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        
+        return { success: false, error: errorMessage };
+    }
+}
+
 
 export async function getBloomPredictionForCity(city: City): Promise<PredictionResult> {
     try {
@@ -55,3 +97,4 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
         return { success: false, error: errorMessage };
     }
 }
+
