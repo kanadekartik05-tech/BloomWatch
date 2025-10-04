@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, MapPin, ArrowLeft } from 'lucide-react';
+import { Check, ChevronsUpDown, MapPin, ArrowLeft, Loader } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,11 +18,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Country, State, City } from '@/lib/geodata';
+import type { Country, State, City } from '@/lib/geo-api';
 
 type MapSearchProps = {
   viewLevel: 'country' | 'state' | 'city';
   countries: Country[];
+  states: State[];
+  cities: City[];
+  loadingStates: boolean;
+  loadingCities: boolean;
   selectedCountry: Country | null;
   selectedState: State | null;
   onSelectCountry: (country: Country) => void;
@@ -35,6 +39,10 @@ type MapSearchProps = {
 export function MapSearch({
   viewLevel,
   countries,
+  states,
+  cities,
+  loadingStates,
+  loadingCities,
   selectedCountry,
   selectedState,
   onSelectCountry,
@@ -57,7 +65,7 @@ export function MapSearch({
         <CommandGroup heading="Countries">
           {countries.map((country) => (
             <CommandItem
-              key={country.name}
+              key={country.iso2}
               value={country.name}
               onSelect={() => {
                 onSelectCountry(country);
@@ -78,19 +86,26 @@ export function MapSearch({
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Countries
           </Button>
           <CommandGroup heading={`States in ${selectedCountry.name}`}>
-            {selectedCountry.states.map((state) => (
-              <CommandItem
-                key={state.name}
-                value={state.name}
-                onSelect={() => {
-                  onSelectState(state);
-                  setOpen(false);
-                }}
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                {state.name}
-              </CommandItem>
-            ))}
+            {loadingStates ? (
+                <div className="flex items-center justify-center p-4 text-sm">
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Loading states...
+                </div>
+            ) : states.length > 0 ? (
+                states.map((state) => (
+                    <CommandItem
+                        key={state.iso2}
+                        value={state.name}
+                        onSelect={() => {
+                        onSelectState(state);
+                        setOpen(false);
+                        }}
+                    >
+                        <MapPin className="mr-2 h-4 w-4" />
+                        {state.name}
+                    </CommandItem>
+                    ))
+            ) : <CommandEmpty>No states found for this country.</CommandEmpty>}
           </CommandGroup>
         </>
       );
@@ -102,9 +117,15 @@ export function MapSearch({
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to States
           </Button>
           <CommandGroup heading={`Cities in ${selectedState.name}`}>
-            {selectedState.cities.map((city) => (
+          {loadingCities ? (
+                <div className="flex items-center justify-center p-4 text-sm">
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Loading cities...
+                </div>
+            ) : cities.length > 0 ? (
+                cities.map((city) => (
               <CommandItem
-                key={city.name}
+                key={city.id}
                 value={city.name}
                 onSelect={() => {
                   onSelectCity(city);
@@ -114,7 +135,7 @@ export function MapSearch({
                 <MapPin className="mr-2 h-4 w-4" />
                 {city.name}
               </CommandItem>
-            ))}
+            ))) : <CommandEmpty>No cities found for this state.</CommandEmpty>}
           </CommandGroup>
         </>
       );
