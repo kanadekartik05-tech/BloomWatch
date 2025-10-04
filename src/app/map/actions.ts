@@ -4,8 +4,8 @@
 import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
 import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
-import { summarizeChartData, type ChartDataSummaryInput, type ChartDataSummaryOutput } from "@/ai/flows/summarize-chart-data";
-import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
+import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
+import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 import { City } from "@/lib/geodata";
 
 type PredictionResult = {
