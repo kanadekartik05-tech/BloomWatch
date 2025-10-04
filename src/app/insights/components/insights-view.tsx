@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { getBloomPrediction } from '../actions';
+import { getEnhancedBloomPrediction } from '../actions';
 import { Loader, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -61,7 +61,8 @@ export function InsightsView({ regions }: InsightsViewProps) {
     startTransition(async () => {
       setPrediction(null);
       setError(null);
-      const result = await getBloomPrediction({
+      
+      const result = await getEnhancedBloomPrediction({
         regionName: selectedRegion.name,
         lat: selectedRegion.lat,
         lon: selectedRegion.lon,
@@ -143,7 +144,7 @@ export function InsightsView({ regions }: InsightsViewProps) {
             {isPending && (
                 <div className="flex items-center text-sm text-muted-foreground">
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing historical data...
+                    Analyzing climate and vegetation data...
                 </div>
             )}
             {error && (

@@ -1,6 +1,9 @@
 'use server';
 
 import { predictNextBloomDate, PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
+import { getClimateData } from "@/ai/flows/get-climate-data";
+import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
+
 
 type PredictionResult = {
     success: true;
@@ -10,12 +13,24 @@ type PredictionResult = {
     error: string;
 };
 
-export async function getBloomPrediction(input: PredictNextBloomDateInput): Promise<PredictionResult> {
+// This combines fetching climate data and getting a prediction into one action.
+export async function getEnhancedBloomPrediction(input: Omit<PredictNextBloomDateInput, 'climateData'>): Promise<PredictionResult> {
     try {
-        const result = await predictNextBloomDate(input);
+        // 1. Fetch climate data first
+        const climateInput: ClimateDataInput = { lat: input.lat, lon: input.lon };
+        const climateResult = await getClimateData(climateInput);
+
+        // 2. Combine with other input and get prediction
+        const predictionInput: PredictNextBloomDateInput = {
+            ...input,
+            climateData: climateResult,
+        };
+        
+        const result = await predictNextBloomDate(predictionInput);
         return { success: true, data: result };
+
     } catch (error) {
-        console.error("Error getting bloom prediction:", error);
+        console.error("Error getting enhanced bloom prediction:", error);
         
         let errorMessage = "Failed to get prediction from AI.";
         if (error instanceof Error) {
