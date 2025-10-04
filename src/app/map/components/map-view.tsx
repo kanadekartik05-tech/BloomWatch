@@ -13,6 +13,7 @@ import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-d
 import { Button } from '@/components/ui/button';
 import { Globe, Satellite, Library, X } from 'lucide-react';
 import { ComparisonView } from './comparison-view';
+import { StateInfoPanel } from './state-info-panel';
 
 
 type MapViewProps = {
@@ -261,6 +262,12 @@ export default function MapView({ apiKey }: MapViewProps) {
               {mapType === 'roadmap' ? <Satellite className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
           </Button>
       </div>
+
+      <StateInfoPanel 
+        state={selectedState} 
+        country={selectedCountry}
+        onClose={handleBackToCountries}
+      />
 
       {isCompareMode && comparisonList.length > 0 && (
          <div className="absolute bottom-4 left-4 z-10">
