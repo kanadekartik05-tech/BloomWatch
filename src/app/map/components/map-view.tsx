@@ -6,7 +6,7 @@ import { useState, useCallback } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Legend } from 'lucide-react';
+import { List } from 'lucide-react';
 
 type MapViewProps = {
   apiKey: string;
@@ -61,7 +61,7 @@ export default function MapView({ apiKey, regions }: MapViewProps) {
       <div className="absolute bottom-4 right-4 z-10">
         <Card className="w-48">
           <CardHeader className="p-4">
-            <CardTitle className="text-base flex items-center gap-2"><Legend size={16}/> Legend</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><List size={16}/> Legend</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 text-sm space-y-2">
             <div className="flex items-center gap-2">
