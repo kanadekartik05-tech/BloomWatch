@@ -12,25 +12,12 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch';
 import { subYears, format } from 'date-fns';
-
-export const ClimateDataInputSchema = z.object({
-    lat: z.number().describe('Latitude of the location.'),
-    lon: z.number().describe('Longitude of the location.'),
-});
-export type ClimateDataInput = z.infer<typeof ClimateDataInputSchema>;
-
-export const ClimateDataOutputSchema = z.array(z.object({
-    month: z.string().describe('The month of the data point.'),
-    temperature: z.number().describe('Average monthly temperature in Celsius.'),
-    rainfall: z.number().describe('Total monthly precipitation in mm.'),
-}));
-export type ClimateDataOutput = z.infer<typeof ClimateDataOutputSchema>;
+import { ClimateDataInputSchema, ClimateDataOutputSchema, type ClimateDataOutput, type ClimateDataInput } from './types';
 
 
 export async function getClimateData(input: ClimateDataInput): Promise<ClimateDataOutput> {
     return getClimateDataFlow(input);
 }
-
 
 const getClimateDataFlow = ai.defineFlow(
     {

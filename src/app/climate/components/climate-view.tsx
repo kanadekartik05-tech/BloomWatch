@@ -20,7 +20,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 
 import { fetchClimateDataForRegion } from '../actions';
 import { Loader } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { ClimateDataOutput } from '@/ai/flows/get-climate-data';
+import type { ClimateDataOutput } from '@/ai/flows/types';
 
 type ClimateViewProps = {
   regions: Region[];

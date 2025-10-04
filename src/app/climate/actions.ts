@@ -1,6 +1,7 @@
 'use server';
 
-import { getClimateData, ClimateDataInput, ClimateDataOutput } from "@/ai/flows/get-climate-data";
+import { getClimateData } from "@/ai/flows/get-climate-data";
+import type { ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 
 type ClimateResult = {
     success: true;
