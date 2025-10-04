@@ -39,12 +39,8 @@ const getNdviDataFlow = ai.defineFlow(
         const startYear = format(startDate, 'yyyy');
         const endYear = format(endDate, 'yyyy');
 
-        // ALLSKY_SFC_SW_DWN: Downward Shortwave Radiation
-        // T2M: Temperature at 2m
-        // PRECTOTCORR: Precipitation
-        // NDVI: Normalized Difference Vegetation Index
         const parameters = 'NDVI'; 
-        const community = 'AG'; // Agroclimatology
+        const community = 'RE'; // Renewable Energy
         const formatType = 'JSON';
 
         let apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${startYear}&end=${endYear}&format=${formatType}`;
