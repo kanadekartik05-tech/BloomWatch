@@ -1,5 +1,7 @@
 import { Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ClimateView } from './components/climate-view';
+import { regions } from '@/lib/data';
 
 export const metadata = {
     title: 'Climate Data | BloomWatch',
@@ -9,7 +11,7 @@ export const metadata = {
 export default function ClimatePage() {
     const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
 
-    if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
+    if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE" || apiKey === "placeholder_api_key") {
         return (
             <div className="container mx-auto py-10 text-center">
                 <Alert variant="destructive" className="mx-auto max-w-lg">
@@ -32,10 +34,10 @@ export default function ClimatePage() {
             <div className="text-center mb-8">
                 <h1 className="text-4xl font-bold font-headline">Climate Data</h1>
                 <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                    Explore real-time climate data for different regions.
+                    Explore historical climate data for different regions.
                 </p>
             </div>
-            {/* Climate data view will go here */}
+            <ClimateView regions={regions} />
         </div>
     );
 }
