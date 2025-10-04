@@ -6,13 +6,6 @@ import type { Country, State, City } from '@/lib/geodata';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -21,10 +14,12 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { getEnhancedBloomPrediction, fetchNdviDataForRegion } from '../actions';
-import { Loader, Wand2, PersonStanding, Sprout, Flower } from 'lucide-react';
+import { Loader, Wand2, PersonStanding, Sprout, Flower, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+
 
 type InsightsViewProps = {
     geodata: Country[];
@@ -47,6 +42,7 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   const [selectedCountryName, setSelectedCountryName] = useState<string>('');
   const [selectedStateName, setSelectedStateName] = useState<string>('');
   const [selectedCityName, setSelectedCityName] = useState<string>('');
+  const [info, setInfo] = useState<string | null>(null);
 
   const [prediction, setPrediction] = useState<PredictionState>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
@@ -56,9 +52,13 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   const [vegetationError, setVegetationError] = useState<string | null>(null);
   const [isVegetationPending, startVegetationTransition] = useTransition();
   
-  const selectedCountry = useMemo(() => allCountries.find(c => c.name === selectedCountryName), [allCountries, selectedCountryName]);
-  const selectedState = useMemo(() => states.find(s => s.name === selectedStateName), [states, selectedStateName]);
-  const selectedCity = useMemo(() => cities.find(c => c.name === selectedCityName), [cities, selectedCityName]);
+  const countryOptions = useMemo(() => allCountries.map(c => ({ value: c.name, label: c.name })), [allCountries]);
+  const stateOptions = useMemo(() => states.map(s => ({ value: s.name, label: s.name })), [states]);
+  const cityOptions = useMemo(() => cities.map(c => ({ value: c.name, label: c.name })), [cities]);
+  
+  const selectedCountry = useMemo(() => allCountries.find(c => c.name.toLowerCase() === selectedCountryName.toLowerCase()), [allCountries, selectedCountryName]);
+  const selectedState = useMemo(() => states.find(s => s.name.toLowerCase() === selectedStateName.toLowerCase()), [states, selectedStateName]);
+  const selectedCity = useMemo(() => cities.find(c => c.name.toLowerCase() === selectedCityName.toLowerCase()), [cities, selectedCityName]);
 
 
   const resetSelection = (level: 'country' | 'state' | 'city') => {
@@ -66,6 +66,7 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
     setPredictionError(null);
     setVegetationData(null);
     setVegetationError(null);
+    setInfo(null);
     
     if (level === 'country') {
       setSelectedCountryName('');
@@ -83,12 +84,12 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   const handleSelectCountry = useCallback((countryName: string) => {
     resetSelection('state');
     setSelectedCountryName(countryName);
-    const country = allCountries.find(c => c.name === countryName);
+    const country = allCountries.find(c => c.name.toLowerCase() === countryName.toLowerCase());
     
     if (country && country.states && country.states.length > 0) {
         setStates(country.states);
     } else {
-        setVegetationError("Data for this country is not yet available. We are working on it!");
+        setInfo("Data for this country is not yet available. We are working on it!");
         setStates([]);
     }
   }, [allCountries]);
@@ -96,7 +97,7 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   const handleSelectState = useCallback((stateName: string) => {
     resetSelection('city');
     setSelectedStateName(stateName);
-    const state = states.find(s => s.name === stateName);
+    const state = states.find(s => s.name.toLowerCase() === stateName.toLowerCase());
     if(state) {
         setCities(state.cities || []);
     }
@@ -104,6 +105,7 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   
   const handleSelectCity = useCallback((cityName: string) => {
       setSelectedCityName(cityName);
+      setInfo(null);
   }, []);
 
 
@@ -170,44 +172,41 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
           <CardDescription>Choose a location to analyze its vegetation data and generate AI-powered insights.</CardDescription>
         </CardHeader>
         <CardContent className="w-full md:w-96 space-y-4">
-             <Select onValueChange={handleSelectCountry} value={selectedCountryName}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Select a Country" />
-                </SelectTrigger>
-                <SelectContent>
-                    {allCountries.map(country => (
-                        <SelectItem key={country.name} value={country.name}>
-                            {country.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+             <Combobox
+                options={countryOptions}
+                value={selectedCountryName}
+                onChange={handleSelectCountry}
+                placeholder="Select a Country"
+                searchPlaceholder="Search countries..."
+                emptyPlaceholder="No country found."
+            />
 
-            <Select onValueChange={handleSelectState} value={selectedStateName} disabled={!selectedCountry || states.length === 0}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Select a State" />
-                </SelectTrigger>
-                <SelectContent>
-                    {states.map(state => (
-                        <SelectItem key={state.name} value={state.name}>
-                            {state.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <Combobox
+                options={stateOptions}
+                value={selectedStateName}
+                onChange={handleSelectState}
+                placeholder="Select a State"
+                searchPlaceholder="Search states..."
+                emptyPlaceholder="No state found."
+                disabled={!selectedCountry || states.length === 0}
+            />
 
-            <Select onValueChange={handleSelectCity} value={selectedCityName} disabled={!selectedState || cities.length === 0}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Select a City" />
-                </SelectTrigger>
-                <SelectContent>
-                    {cities.map(city => (
-                        <SelectItem key={city.name} value={city.name}>
-                            {city.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <Combobox
+                options={cityOptions}
+                value={selectedCityName}
+                onChange={handleSelectCity}
+                placeholder="Select a City"
+                searchPlaceholder="Search cities..."
+                emptyPlaceholder="No city found."
+                disabled={!selectedState || cities.length === 0}
+            />
+             {info && (
+              <Alert className="mt-2">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Heads up!</AlertTitle>
+                <AlertDescription>{info}</AlertDescription>
+              </Alert>
+            )}
         </CardContent>
       </Card>
       
@@ -310,5 +309,3 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
     </div>
   );
 }
-
-    
