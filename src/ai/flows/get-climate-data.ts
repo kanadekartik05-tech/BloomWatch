@@ -27,8 +27,9 @@ const getClimateDataFlow = ai.defineFlow(
     },
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
-        if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE" || apiKey === "placeholder_api_key") {
-            throw new Error('NASA POWER API key is not configured. Please get a key from NASA POWER and set the NEXT_PUBLIC_NASA_API_KEY environment variable.');
+        if (!apiKey) {
+            // This check is sufficient. We don't need to check for placeholder values.
+            throw new Error('NASA POWER API key is not configured in environment variables.');
         }
 
         const endDate = new Date();
@@ -47,16 +48,33 @@ const getClimateDataFlow = ai.defineFlow(
             const response = await fetch(apiUrl);
             if (!response.ok) {
                 const errorText = await response.text();
+                // Check if the error is due to an invalid API key
+                if (errorText.includes("Invalid API key")) {
+                     throw new Error('The provided NASA POWER API key is invalid. Please check your key and try again.');
+                }
                 throw new Error(`NASA POWER API request failed with status ${response.status}: ${errorText}`);
             }
             const data: any = await response.json();
 
+            // Handle cases where the API returns an error object
+            if (data.error) {
+                throw new Error(`NASA POWER API Error: ${data.error}`);
+            }
+
+            if (!data.properties || !data.properties.parameter) {
+                throw new Error('Unexpected response format from NASA POWER API.');
+            }
+
             const t2m = data.properties.parameter.T2M;
             const prectotcorr = data.properties.parameter.PRECTOTCORR;
+
+            if (!t2m || !prectotcorr) {
+                throw new Error('Climate data (T2M or PRECTOTCORR) not found in NASA POWER API response.');
+            }
             
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-            const result: ClimateDataOutput = Object.keys(t2m).map((key, index) => {
+            const result: ClimateDataOutput = Object.keys(t2m).map((key) => {
                 const yearMonth = key.slice(0, 6); // YYYYMM
                  if(key.endsWith('13')) return null; // ignore annual average
 
@@ -73,6 +91,9 @@ const getClimateDataFlow = ai.defineFlow(
 
         } catch (error) {
             console.error('Error fetching data from NASA POWER API:', error);
+            if (error instanceof Error) {
+                throw error;
+            }
             throw new Error('Failed to fetch climate data from NASA POWER API.');
         }
     }
