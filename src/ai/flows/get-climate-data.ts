@@ -28,21 +28,20 @@ const getClimateDataFlow = ai.defineFlow(
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         if (!apiKey) {
-            // This check is sufficient. We don't need to check for placeholder values.
             throw new Error('NASA POWER API key is not configured in environment variables.');
         }
 
         const endDate = new Date();
         const startDate = subYears(endDate, 1);
 
-        const formattedStartDate = format(startDate, 'yyyyMMdd');
-        const formattedEndDate = format(endDate, 'yyyyMMdd');
+        const startYear = format(startDate, 'yyyy');
+        const endYear = format(endDate, 'yyyy');
 
         const parameters = 'T2M,PRECTOTCORR'; // T2M: Temperature at 2m, PRECTOTCORR: Precipitation
         const community = 'RE'; // Renewable Energy
         const formatType = 'JSON';
 
-        const apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${formattedStartDate.substring(0, 6)}&end=${formattedEndDate.substring(0, 6)}&format=${formatType}&api_key=${apiKey}`;
+        const apiUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=${community}&longitude=${lon}&latitude=${lat}&start=${startYear}&end=${endYear}&format=${formatType}&api_key=${apiKey}`;
         
         try {
             const response = await fetch(apiUrl);
