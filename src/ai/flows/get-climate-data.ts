@@ -27,7 +27,7 @@ const getClimateDataFlow = ai.defineFlow(
     },
     async ({ lat, lon }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
-        if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE" || apiKey === "placeholder_api_key") {
+        if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
             throw new Error('NASA POWER API key is not configured.');
         }
 

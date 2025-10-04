@@ -11,7 +11,7 @@ export const metadata = {
 export default function ClimatePage() {
     const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
 
-    if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE" || apiKey === "placeholder_api_key") {
+    if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
         return (
             <div className="container mx-auto py-10 text-center">
                 <Alert variant="destructive" className="mx-auto max-w-lg">
