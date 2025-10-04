@@ -5,7 +5,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnalysisForCity, getBloomPredictionForCity } from '../actions';
 import {
@@ -19,6 +19,10 @@ import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 
 
 type CityInfoPanelProps = {
@@ -58,6 +62,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
     const [predictionError, setPredictionError] = useState<string | null>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [date, setDate] = useState<DateRange | undefined>();
 
 
     useEffect(() => {
@@ -72,7 +77,9 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
         }
 
         startAnalysisTransition(async () => {
-            const result = await getAnalysisForCity(city);
+            const startDate = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
+            const endDate = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
+            const result = await getAnalysisForCity(city, startDate, endDate);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -81,7 +88,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             }
         });
 
-    }, [city]);
+    }, [city, date]);
 
     const handlePredict = () => {
         if (!city || !climateData || !vegetationData) return;
@@ -141,6 +148,45 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             "flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto",
             isFullScreen && "h-full"
         )}>
+
+            <div className="grid gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                        date.to ? (
+                            <>
+                            {format(date.from, "LLL dd, y")} -{" "}
+                            {format(date.to, "LLL dd, y")}
+                            </>
+                        ) : (
+                            format(date.from, "LLL dd, y")
+                        )
+                        ) : (
+                        <span>Pick a date range</span>
+                        )}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
             
             {isAnalysisPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">

@@ -24,9 +24,9 @@ type CityAnalysisResult = {
     error: string;
 };
 
-export async function getAnalysisForCity(city: City): Promise<CityAnalysisResult> {
+export async function getAnalysisForCity(city: City, startDate?: string, endDate?: string): Promise<CityAnalysisResult> {
      try {
-        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon };
+        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon, startDate, endDate };
 
         // Fetch vegetation and climate data in parallel
         const [ndviResult, climateResult] = await Promise.all([
@@ -97,4 +97,3 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
         return { success: false, error: errorMessage };
     }
 }
-

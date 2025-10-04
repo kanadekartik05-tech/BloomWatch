@@ -13,7 +13,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch';
-import { sub, format, getYear, getMonth, startOfMonth } from 'date-fns';
+import { sub, format, getYear, getMonth, startOfMonth, eachMonthOfInterval } from 'date-fns';
 import { ClimateDataInputSchema } from './types';
 
 const NdviDataOutputSchema = z.array(z.object({
@@ -34,11 +34,11 @@ const getNdviDataFlow = ai.defineFlow(
         inputSchema: ClimateDataInputSchema,
         outputSchema: NdviDataOutputSchema,
     },
-    async ({ lat, lon }) => {
+    async ({ lat, lon, startDate: customStartDate, endDate: customEndDate }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         
-        const endDate = new Date();
-        const startDate = sub(endDate, { years: 2 });
+        const endDate = customEndDate ? new Date(customEndDate) : new Date();
+        const startDate = customStartDate ? new Date(customStartDate) : sub(endDate, { years: 2 });
 
         const startYear = format(startDate, 'yyyy');
         const endYear = format(endDate, 'yyyy');
@@ -99,24 +99,23 @@ const getNdviDataFlow = ai.defineFlow(
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
             
-            const last12Months: {month: string, value: number, date: string}[] = [];
-            const currentMonthStart = startOfMonth(new Date());
+            const interval = { start: startDate, end: endDate };
+            const allMonthsInInterval = eachMonthOfInterval(interval);
 
-            for (let i = 11; i >= 0; i--) {
-                const targetDate = sub(currentMonthStart, { months: i });
-                const targetYear = getYear(targetDate);
-                const targetMonthIndex = getMonth(targetDate);
+            const resultData = allMonthsInInterval.map(monthDate => {
+                const year = getYear(monthDate);
+                const monthIndex = getMonth(monthDate);
 
-                const dataPoint = allData.find(d => d.year === targetYear && d.monthIndex === targetMonthIndex);
-
-                last12Months.push({
-                    month: monthNames[targetMonthIndex],
+                const dataPoint = allData.find(d => d.year === year && d.monthIndex === monthIndex);
+                
+                return {
+                    month: `${monthNames[monthIndex]} ${year}`,
                     value: dataPoint ? dataPoint.value : 0,
-                    date: targetDate.toISOString(),
-                });
-            }
+                    date: monthDate.toISOString(),
+                };
+            });
 
-            return last12Months;
+            return resultData;
 
         } catch (error) {
             console.error('Error fetching Insolation data from NASA POWER API:', error);

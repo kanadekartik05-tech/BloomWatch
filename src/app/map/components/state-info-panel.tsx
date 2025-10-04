@@ -5,7 +5,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize, Wand2, Flower, Sprout, PersonStanding } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize, Wand2, Flower, Sprout, PersonStanding, CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnalysisForCity, getBloomPredictionForCity } from '../actions';
 import {
@@ -19,6 +19,10 @@ import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
 
 type StateInfoPanelProps = {
   state: State | null;
@@ -57,6 +61,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
     const [predictionError, setPredictionError] = useState<string | null>(null);
     
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [date, setDate] = useState<DateRange | undefined>();
 
     const representativeCity = useMemo(() => {
         if (!state || !state.cities || state.cities.length === 0) return null;
@@ -73,13 +78,15 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
 
         if (!representativeCity) {
             if (state) {
-                 setError("No city data available to analyze for this state.");
+                 setAnalysisError("No city data available to analyze for this state.");
             }
             return;
         }
 
         startAnalysisTransition(async () => {
-            const result = await getAnalysisForCity(representativeCity);
+            const startDate = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
+            const endDate = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
+            const result = await getAnalysisForCity(representativeCity, startDate, endDate);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -88,7 +95,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
             }
         });
 
-    }, [representativeCity, state]);
+    }, [representativeCity, state, date]);
     
     const handlePredict = () => {
         if (!representativeCity) return;
@@ -149,6 +156,45 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
             "flex h-[calc(100vh-20rem)] flex-col space-y-6 overflow-y-auto",
             isFullScreen && "h-full"
         )}>
+
+            <div className="grid gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                        date.to ? (
+                            <>
+                            {format(date.from, "LLL dd, y")} -{" "}
+                            {format(date.to, "LLL dd, y")}
+                            </>
+                        ) : (
+                            format(date.from, "LLL dd, y")
+                        )
+                        ) : (
+                        <span>Pick a date range</span>
+                        )}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
             
             {isAnalysisPending && (
                 <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">

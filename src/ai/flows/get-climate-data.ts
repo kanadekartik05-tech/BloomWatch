@@ -25,11 +25,11 @@ const getClimateDataFlow = ai.defineFlow(
         inputSchema: ClimateDataInputSchema,
         outputSchema: ClimateDataOutputSchema,
     },
-    async ({ lat, lon }) => {
+    async ({ lat, lon, startDate: customStartDate, endDate: customEndDate }) => {
         const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         
-        const endDate = new Date();
-        const startDate = subYears(endDate, 1);
+        const endDate = customEndDate ? new Date(customEndDate) : new Date();
+        const startDate = customStartDate ? new Date(customStartDate) : subYears(endDate, 1);
 
         const startYear = format(startDate, 'yyyy');
         const endYear = format(endDate, 'yyyy');
@@ -74,6 +74,11 @@ const getClimateDataFlow = ai.defineFlow(
                 
                 const year = parseInt(key.slice(0, 4), 10);
                 const monthIndex = parseInt(key.slice(4, 6), 10) - 1;
+                const dataDate = new Date(year, monthIndex);
+
+                if (dataDate < startDate || dataDate > endDate) {
+                    return null;
+                }
 
                 return {
                     year,
@@ -84,27 +89,14 @@ const getClimateDataFlow = ai.defineFlow(
                 };
             }).filter((item): item is Exclude<typeof item, null> => item !== null);
             
-            const currentYear = getYear(endDate);
-            const currentMonthIndex = getMonth(endDate);
-
-            const last12MonthsData = allData.filter(d => {
-                if (d.year === currentYear) {
-                    return d.monthIndex <= currentMonthIndex;
-                }
-                if (d.year === currentYear - 1) {
-                    return d.monthIndex > currentMonthIndex;
-                }
-                return false;
-            });
-            
-            last12MonthsData.sort((a, b) => {
+            allData.sort((a, b) => {
                 const yearDiff = a.year - b.year;
                 if (yearDiff !== 0) return yearDiff;
                 return a.monthIndex - b.monthIndex;
             });
 
-            const result: ClimateDataOutput = last12MonthsData.map(d => ({
-                month: d.month,
+            const result: ClimateDataOutput = allData.map(d => ({
+                month: `${d.month} ${d.year}`,
                 temperature: d.temperature,
                 rainfall: d.rainfall,
             }));
