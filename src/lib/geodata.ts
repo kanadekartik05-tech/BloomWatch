@@ -1080,5 +1080,5 @@ export type City = {
     { name: 'Fiji', lat: -17.7134, lon: 178.0650, states: [] },
     { name: 'Finland', lat: 61.9241, lon: 25.7482, states: [] },
     { name: 'France', lat: 46.2276, lon: 2.2137, states: [] },
-  ].map(c => ({...c, states: []}));
+  ];
   
