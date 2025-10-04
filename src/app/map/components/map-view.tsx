@@ -8,12 +8,11 @@ import { MapSearch } from './map-search';
 import { geodata, allCountries as extraCountries } from '@/lib/geodata';
 import type { Country, State, City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getBloomPredictionForCity } from '../actions';
-import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { Button } from '@/components/ui/button';
 import { Globe, Satellite, Library, X } from 'lucide-react';
 import { ComparisonView } from './comparison-view';
 import { StateInfoPanel } from './state-info-panel';
+import { CityInfoPanel } from './city-info-panel';
 
 
 type MapViewProps = {
@@ -22,7 +21,6 @@ type MapViewProps = {
 
 type ViewLevel = 'country' | 'state' | 'city';
 type MapType = 'roadmap' | 'satellite';
-type PredictionState = PredictNextBloomDateOutput | null;
 
 const INITIAL_CAMERA = {
   center: { lat: 20, lng: 0 },
@@ -57,11 +55,6 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
 
-  // Prediction states
-  const [prediction, setPrediction] = useState<PredictionState>(null);
-  const [predictionError, setPredictionError] = useState<string | null>(null);
-  const [isAIPending, startAITransition] = useTransition();
-
   // Comparison states
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [comparisonList, setComparisonList] = useState<City[]>([]);
@@ -73,29 +66,39 @@ export default function MapView({ apiKey }: MapViewProps) {
     setCameraState({ center, zoom });
   };
   
-  const resetSelection = () => {
-    setSelectedCity(null);
-    setPrediction(null);
-    setPredictionError(null);
+  const resetSelection = (level: 'country' | 'state' | 'city') => {
+    if (level === 'country') {
+      setSelectedCountry(null);
+      setSelectedState(null);
+      setSelectedCity(null);
+      setStates([]);
+      setCities([]);
+    }
+    if (level === 'state') {
+       setSelectedState(null);
+       setSelectedCity(null);
+       setCities([]);
+    }
+    if (level === 'city') {
+       setSelectedCity(null);
+    }
   }
 
   const handleSelectCountry = useCallback((country: Country) => {
     setSelectedCountry(country);
-    setSelectedState(null);
-    setStates(country.states || []);
-    setCities([]);
     setViewLevel('state');
     setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
-    resetSelection();
+    resetSelection('state');
+    setStates(country.states || []);
   }, []);
 
   const handleSelectState = useCallback((state: State) => {
     if (!selectedCountry) return;
     setSelectedState(state);
-    setCities(state.cities || []);
     setViewLevel('city');
     setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
-    resetSelection();
+    resetSelection('city');
+    setCities(state.cities || []);
   }, [selectedCountry]);
 
   const handleToggleCompareItem = (city: City) => {
@@ -121,37 +124,19 @@ export default function MapView({ apiKey }: MapViewProps) {
     }
     setSelectedCity(city);
     setCameraState({ center: { lat: city.lat, lng: city.lon }, zoom: 12 });
-    setPrediction(null);
-    setPredictionError(null);
-    
-    startAITransition(async () => {
-      const result = await getBloomPredictionForCity(city);
-      if (result.success) {
-        setPrediction(result.data);
-      } else {
-        setPredictionError(result.error);
-      }
-    });
-
   }, [isCompareMode]);
 
   const handleBackToCountries = () => {
-    setSelectedCountry(null);
-    setSelectedState(null);
-    setStates([]);
-    setCities([]);
     setViewLevel('country');
     setCameraState(INITIAL_CAMERA);
-    resetSelection();
+    resetSelection('country');
   };
 
   const handleBackToStates = () => {
     if (!selectedCountry) return;
-    setSelectedState(null);
-    setCities([]);
     setViewLevel('state');
     setCameraState({ center: { lat: selectedCountry.lat, lng: selectedCountry.lon }, zoom: 5 });
-    resetSelection();
+    resetSelection('city');
   };
   
   const markersToDisplay = useMemo(() => {
@@ -184,8 +169,6 @@ export default function MapView({ apiKey }: MapViewProps) {
 
   const handleInfoWindowClose = () => {
     setSelectedCity(null);
-    setPrediction(null);
-    setPredictionError(null);
   };
   
   const toggleMapType = () => {
@@ -212,13 +195,9 @@ export default function MapView({ apiKey }: MapViewProps) {
             key={`${item.name}-${item.lat}-${item.lon}`}
             item={item}
             onClick={() => handleMarkerClick(item)}
-            onClose={handleInfoWindowClose}
             isSelected={selectedCity?.name === item.name && selectedCity?.lat === item.lat && !isCompareMode}
             isComparing={isCompareMode && item.type === 'city' && isCityInComparison(item)}
             isCompareModeActive={isCompareMode}
-            prediction={prediction}
-            isLoading={isAIPending && selectedCity?.name === item.name && selectedCity?.lat === item.lat}
-            error={predictionError}
           />
         ))}
       </Map>
@@ -267,6 +246,15 @@ export default function MapView({ apiKey }: MapViewProps) {
         state={selectedState} 
         country={selectedCountry}
         onBackToCountries={handleBackToCountries}
+        isOpen={!!selectedState && !selectedCity}
+      />
+
+      <CityInfoPanel
+        city={selectedCity}
+        state={selectedState}
+        country={selectedCountry}
+        onBackToStates={handleBackToStates}
+        isOpen={!!selectedCity && !isCompareMode}
       />
 
       {isCompareMode && comparisonList.length > 0 && (
