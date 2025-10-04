@@ -1,0 +1,56 @@
+'use server';
+
+import { predictNextBloomDate, type PredictNextBloomDateInput, type PredictNextBloomDateOutput } from "@/ai/flows/predict-next-bloom-date";
+import { getClimateData } from "@/ai/flows/get-climate-data";
+import { getNdviData } from "@/ai/flows/get-ndvi-data";
+import type { ClimateDataInput } from "@/ai/flows/types";
+import { City } from "@/lib/geodata";
+
+type PredictionResult = {
+    success: true;
+    data: PredictNextBloomDateOutput;
+} | {
+    success: false;
+    error: string;
+};
+
+export async function getBloomPredictionForCity(city: City): Promise<PredictionResult> {
+    try {
+        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon };
+
+        // Fetch vegetation and climate data in parallel
+        const [ndviResult, climateResult] = await Promise.all([
+            getNdviData(climateInput),
+            getClimateData(climateInput)
+        ]);
+
+        if (ndviResult.length === 0) {
+            return { success: false, error: "No vegetation data was found for the requested time period. The location may be over a large body of water or have other data availability issues." };
+        }
+
+        // We need a dummy latest bloom date. In a real scenario, this would come from a database.
+        const dummyLatestBloom = `${new Date().getFullYear()}-04-01`;
+
+        const predictionInput: PredictNextBloomDateInput = {
+            regionName: city.name,
+            lat: city.lat,
+            lon: city.lon,
+            ndviData: ndviResult.map(d => ({ month: d.month, value: d.value })),
+            latestBloomDate: dummyLatestBloom,
+            climateData: climateResult,
+        };
+        
+        const result = await predictNextBloomDate(predictionInput);
+        return { success: true, data: result };
+
+    } catch (error) {
+        console.error("Error getting bloom prediction for city:", error);
+        
+        let errorMessage = "Failed to get prediction from AI.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        
+        return { success: false, error: errorMessage };
+    }
+}

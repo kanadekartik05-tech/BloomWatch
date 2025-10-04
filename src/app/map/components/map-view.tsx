@@ -2,17 +2,21 @@
 'use client';
 
 import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-maps';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useTransition } from 'react';
 import { RegionMarker } from './region-marker';
 import { MapSearch } from './map-search';
 import { geodata, type Country, type State, type City } from '@/lib/geodata';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { getBloomPredictionForCity } from '../actions';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
+
 
 type MapViewProps = {
   apiKey: string;
 };
 
 type ViewLevel = 'country' | 'state' | 'city';
+type PredictionState = PredictNextBloomDateOutput | null;
 
 const INITIAL_CAMERA = {
   center: { lat: 20, lng: 0 },
@@ -33,54 +37,77 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
 
+  // Prediction states
+  const [prediction, setPrediction] = useState<PredictionState>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [isAIPending, startAITransition] = useTransition();
+
   const [error, setError] = useState<string | null>(null);
 
   const handleMapChange = (e: MapCameraChangedEvent) => {
     const { center, zoom } = e.detail;
     setCameraState({ center, zoom });
   };
+  
+  const resetSelection = () => {
+    setSelectedCity(null);
+    setPrediction(null);
+    setPredictionError(null);
+  }
 
   const handleSelectCountry = useCallback((country: Country) => {
     setSelectedCountry(country);
     setSelectedState(null);
-    setSelectedCity(null);
     setStates(country.states || []);
     setCities([]);
     setViewLevel('state');
     setCameraState({ center: { lat: country.lat, lng: country.lon }, zoom: 5 });
+    resetSelection();
   }, []);
 
   const handleSelectState = useCallback((state: State) => {
     if (!selectedCountry) return;
     setSelectedState(state);
-    setSelectedCity(null);
     setCities(state.cities || []);
     setViewLevel('city');
     setCameraState({ center: { lat: state.lat, lng: state.lon }, zoom: 8 });
+    resetSelection();
   }, [selectedCountry]);
 
   const handleSelectCity = useCallback((city: City) => {
     setSelectedCity(city);
     setCameraState({ center: { lat: city.lat, lng: city.lon }, zoom: 12 });
+    setPrediction(null);
+    setPredictionError(null);
+    
+    startAITransition(async () => {
+      const result = await getBloomPredictionForCity(city);
+      if (result.success) {
+        setPrediction(result.data);
+      } else {
+        setPredictionError(result.error);
+      }
+    });
+
   }, []);
 
   const handleBackToCountries = () => {
     setSelectedCountry(null);
     setSelectedState(null);
-    setSelectedCity(null);
     setStates([]);
     setCities([]);
     setViewLevel('country');
     setCameraState(INITIAL_CAMERA);
+    resetSelection();
   };
 
   const handleBackToStates = () => {
     if (!selectedCountry) return;
     setSelectedState(null);
-    setSelectedCity(null);
     setCities([]);
     setViewLevel('state');
     setCameraState({ center: { lat: selectedCountry.lat, lng: selectedCountry.lon }, zoom: 5 });
+    resetSelection();
   };
   
   const markersToDisplay = useMemo(() => {
@@ -96,8 +123,13 @@ export default function MapView({ apiKey }: MapViewProps) {
       handleSelectState(item);
     } else {
        handleSelectCity(item);
-       setSelectedCity(item);
     }
+  };
+
+  const handleInfoWindowClose = () => {
+    setSelectedCity(null);
+    setPrediction(null);
+    setPredictionError(null);
   };
 
   return (
@@ -115,7 +147,11 @@ export default function MapView({ apiKey }: MapViewProps) {
             key={item.name}
             item={item}
             onClick={() => handleMarkerClick(item)}
+            onClose={handleInfoWindowClose}
             isSelected={selectedCity?.name === item.name}
+            prediction={prediction}
+            isLoading={isAIPending && selectedCity?.name === item.name}
+            error={predictionError}
           />
         ))}
       </Map>
