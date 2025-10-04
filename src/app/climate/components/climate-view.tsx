@@ -11,10 +11,11 @@ import {
   ChartConfig,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
-import { fetchClimateDataForRegion } from '../actions';
-import { Loader, Info, CalendarIcon } from 'lucide-react';
+import { fetchClimateDataForRegion, fetchVegetationDataForRegion, getChartSummary } from '../actions';
+import { Loader, Info, CalendarIcon, MessageSquareText, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { ClimateDataOutput } from '@/ai/flows/types';
+import type { ClimateDataOutput, ChartDataSummaryInput } from '@/ai/flows/types';
+import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import { Combobox } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -48,11 +49,17 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
   const [info, setInfo] = useState<string | null>(null);
 
   const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
+  const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const [isSummaryPending, startSummaryTransition] = useTransition();
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
 
   const allCountries = useMemo(() => {
     const mergedData = [...geodata];
@@ -87,6 +94,9 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
     setError(null);
     setInfo(null);
     setClimateData(null);
+    setVegetationData(null);
+    setSummary(null);
+    setSummaryError(null);
     
     if (level === 'country') {
       setSelectedCountryName('');
@@ -128,43 +138,80 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
       setInfo(null);
   }, []);
   
-  const fetchClimateData = () => {
+  const fetchData = useCallback(() => {
     if (!representativeLocation) {
         setClimateData(null);
+        setVegetationData(null);
         setError(null);
+        setSummary(null);
+        setSummaryError(null);
         return;
     };
     
     startTransition(async () => {
         setError(null);
         setClimateData(null);
+        setVegetationData(null);
+        setSummary(null);
+        setSummaryError(null);
+
         const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
         const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
 
-        const result = await fetchClimateDataForRegion({
+        const input = {
             lat: representativeLocation.lat,
             lon: representativeLocation.lon,
             startDate: start,
             endDate: end,
-        });
+        };
+
+        const [climateResult, vegetationResult] = await Promise.all([
+          fetchClimateDataForRegion(input),
+          fetchVegetationDataForRegion(input)
+        ]);
+
+        if (climateResult.success) {
+            setClimateData(climateResult.data);
+        } else {
+            setError(climateResult.error);
+        }
+        
+        if (vegetationResult.success) {
+            setVegetationData(vegetationResult.data);
+        } else {
+            // We can show the climate data even if vegetation data fails
+            console.warn(vegetationResult.error);
+        }
+    });
+  }, [representativeLocation, startDate, endDate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+
+  const handleGenerateSummary = () => {
+    if (!representativeLocation || !climateData || !vegetationData) return;
+
+    startSummaryTransition(async () => {
+        setSummary(null);
+        setSummaryError(null);
+        
+        const summaryInput: ChartDataSummaryInput = {
+            locationName: representativeLocation.name,
+            climateData,
+            vegetationData,
+        };
+        
+        const result = await getChartSummary(summaryInput);
 
         if (result.success) {
-            setClimateData(result.data);
+            setSummary(result.data.summary);
         } else {
-            setError(result.error);
+            setSummaryError(result.error);
         }
     });
   }
-
-  useEffect(() => {
-    if (representativeLocation) {
-        fetchClimateData();
-    } else {
-        setClimateData(null);
-        setError(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [representativeLocation]);
 
   const cardTitle = useMemo(() => {
     if (selectedCity) return `Climate Data for ${selectedCity.name}`;
@@ -283,7 +330,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <Button onClick={fetchClimateData} disabled={isPending || !representativeLocation} className="w-full">
+                    <Button onClick={fetchData} disabled={isPending || !representativeLocation} className="w-full">
                         {isPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Fetch Data
                     </Button>
@@ -301,20 +348,48 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
                     </Alert>
                 )}
                 {climateData && !isPending && !error && (
-                    <ChartContainer config={chartConfig} className="h-72 w-full">
-                        <ComposedChart data={climateData} accessibilityLayer>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis yAxisId="left" orientation="left" stroke="var(--color-rainfall)" tickLine={false} axisLine={false} label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft' }}/>
-                            <YAxis yAxisId="right" orientation="right" stroke="var(--color-temperature)" tickLine={false} axisLine={false} label={{ value: 'Temperature (°C)', angle: 90, position: 'insideRight' }}/>
-                            <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent indicator="dot" />}
-                            />
-                            <Bar dataKey="rainfall" fill="var(--color-rainfall)" radius={4} yAxisId="left"/>
-                            <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} yAxisId="right" />
-                        </ComposedChart>
-                    </ChartContainer>
+                    <div className="space-y-6">
+                        <ChartContainer config={chartConfig} className="h-72 w-full">
+                            <ComposedChart data={climateData} accessibilityLayer>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis yAxisId="left" orientation="left" stroke="var(--color-rainfall)" tickLine={false} axisLine={false} label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft' }}/>
+                                <YAxis yAxisId="right" orientation="right" stroke="var(--color-temperature)" tickLine={false} axisLine={false} label={{ value: 'Temperature (°C)', angle: 90, position: 'insideRight' }}/>
+                                <ChartTooltip
+                                cursor={false}
+                                content={<ChartTooltipContent indicator="dot" />}
+                                />
+                                <Bar dataKey="rainfall" fill="var(--color-rainfall)" radius={4} yAxisId="left"/>
+                                <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} yAxisId="right" />
+                            </ComposedChart>
+                        </ChartContainer>
+
+                        <div className="space-y-4">
+                            <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isPending || !climateData || !vegetationData} className="w-full">
+                                {isSummaryPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                                Generate Short Reply
+                            </Button>
+                            {isSummaryPending && (
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                                    Generating summary...
+                                </div>
+                            )}
+                            {summaryError && !isSummaryPending && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Summary Failed</AlertTitle>
+                                    <AlertDescription>{summaryError}</AlertDescription>
+                                </Alert>
+                            )}
+                            {summary && !isSummaryPending && (
+                                <Alert>
+                                    <AlertTitle>Analysis Summary</AlertTitle>
+                                    <AlertDescription>{summary}</AlertDescription>
+                                </Alert>
+                            )}
+                        </div>
+                    </div>
                 )}
             </CardContent>
         </Card>
