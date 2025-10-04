@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import type { Country, State, City } from '@/lib/geo-api';
+import type { Country, State, City } from '@/lib/geodata';
 
 type MapSearchProps = {
   viewLevel: 'country' | 'state' | 'city';
@@ -65,7 +65,7 @@ export function MapSearch({
         <CommandGroup heading="Countries">
           {countries.map((country) => (
             <CommandItem
-              key={country.iso2}
+              key={country.name}
               value={country.name}
               onSelect={() => {
                 onSelectCountry(country);
@@ -94,7 +94,7 @@ export function MapSearch({
             ) : states.length > 0 ? (
                 states.map((state) => (
                     <CommandItem
-                        key={state.iso2}
+                        key={state.name}
                         value={state.name}
                         onSelect={() => {
                         onSelectState(state);
@@ -125,7 +125,7 @@ export function MapSearch({
             ) : cities.length > 0 ? (
                 cities.map((city) => (
               <CommandItem
-                key={city.id}
+                key={city.name}
                 value={city.name}
                 onSelect={() => {
                   onSelectCity(city);

@@ -10,7 +10,6 @@ export const metadata = {
 
 export default function MapPage() {
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const cscApiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY;
 
   if (!googleApiKey) {
     return (
@@ -25,21 +24,6 @@ export default function MapPage() {
       </div>
     );
   }
-  
-  if (!cscApiKey || cscApiKey === "YOUR_API_KEY_HERE") {
-    return (
-      <div className="container mx-auto py-10 text-center">
-        <Alert variant="destructive" className="mx-auto max-w-lg">
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>Configuration Error</AlertTitle>
-          <AlertDescription>
-            Country-State-City API key is not configured. Please get a free key from the API provider and set the <code>NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY</code> environment variable in the <code>.env</code> file.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
 
   return (
     <div className="relative h-[calc(100vh-3.5rem)] w-full">
