@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import type { Region } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { ChartTooltipContent } from '@/components/ui/chart';
+import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
 
 type RegionMarkerProps = {
   region: Region;
@@ -31,8 +31,8 @@ export function RegionMarker({ region, isSelected, onClick }: RegionMarkerProps)
   const latestNdvi = region.ndvi[region.ndvi.length - 1];
   const markerColor = useMemo(() => getMarkerColor(latestNdvi.value), [latestNdvi.value]);
 
-  const chartConfig = {
-    value: { label: "NDVI" },
+  const chartConfig: ChartConfig = {
+    value: { label: "NDVI", color: 'hsl(var(--primary))' },
   };
 
   return (
@@ -62,17 +62,19 @@ export function RegionMarker({ region, isSelected, onClick }: RegionMarkerProps)
                 Current NDVI: <span style={{ color: markerColor }}>{latestNdvi.value.toFixed(2)}</span>
               </p>
               <div className="h-32 w-full mt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={region.ndvi} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                    <XAxis dataKey="month" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={10} tickLine={false} axisLine={false} />
-                    <Tooltip
-                        cursor={{fill: 'hsl(var(--muted))'}}
-                        content={<ChartTooltipContent indicator="dot" />}
-                     />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <ChartContainer config={chartConfig}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={region.ndvi} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                      <XAxis dataKey="month" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip
+                          cursor={{fill: 'hsl(var(--muted))'}}
+                          content={<ChartTooltipContent indicator="dot" />}
+                       />
+                      <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
               </div>
             </CardContent>
           </Card>
