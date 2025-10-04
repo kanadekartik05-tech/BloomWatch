@@ -84,6 +84,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
   const representativeLocation = useMemo(() => {
     if (selectedCity) return selectedCity;
     if (selectedState && selectedState.cities && selectedState.cities.length > 0) {
+      // For a state, use a representative city (e.g., the first one)
       return selectedState.cities[0];
     }
     return null;
@@ -138,7 +139,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
       setInfo(null);
   }, []);
   
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback((withDateRange = false) => {
     if (!representativeLocation) {
         setClimateData(null);
         setVegetationData(null);
@@ -155,8 +156,8 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
         setSummary(null);
         setSummaryError(null);
 
-        const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
-        const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
+        const start = withDateRange && startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
+        const end = withDateRange && endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
 
         const input = {
             lat: representativeLocation.lat,
@@ -181,13 +182,15 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
         } else {
             // We can show the climate data even if vegetation data fails
             console.warn(vegetationResult.error);
+            setError(prev => prev ? `${prev} And ${vegetationResult.error}` : vegetationResult.error);
         }
     });
   }, [representativeLocation, startDate, endDate]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Automatically fetch data when a location is selected, without a date range
+    fetchData(false);
+  }, [representativeLocation, fetchData]);
 
 
   const handleGenerateSummary = () => {
@@ -198,7 +201,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
         setSummaryError(null);
         
         const summaryInput: ChartDataSummaryInput = {
-            locationName: representativeLocation.name,
+            locationName: selectedCity?.name || selectedState?.name || '',
             climateData,
             vegetationData,
         };
@@ -330,9 +333,9 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <Button onClick={fetchData} disabled={isPending || !representativeLocation} className="w-full">
-                        {isPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Fetch Data
+                    <Button onClick={() => fetchData(true)} disabled={isPending || !representativeLocation} className="w-full">
+                        {isPending && !climateData ? null : <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                        Fetch Data For Range
                     </Button>
                 </div>
                 {isPending && (
