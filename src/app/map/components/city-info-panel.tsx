@@ -19,7 +19,6 @@ import type { ClimateDataOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/predict-next-bloom-date';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -66,7 +65,9 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
     const [predictionError, setPredictionError] = useState<string | null>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [date, setDate] = useState<DateRange | undefined>();
+    
+    const [startDate, setStartDate] = useState<Date | undefined>();
+    const [endDate, setEndDate] = useState<Date | undefined>();
 
     const fetchAnalysisData = () => {
         if (!city) return;
@@ -79,9 +80,11 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             setPredictionError(null);
             setSummary(null);
             setSummaryError(null);
-            const startDate = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
-            const endDate = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
-            const result = await getAnalysisForCity(city, startDate, endDate);
+            
+            const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
+            const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
+
+            const result = await getAnalysisForCity(city, start, end);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -92,7 +95,8 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     }
 
     useEffect(() => {
-        setDate(undefined);
+        setStartDate(undefined);
+        setEndDate(undefined);
         if (city) {
             fetchAnalysisData();
         }
@@ -177,47 +181,60 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             isFullScreen && "h-full"
         )}>
 
-            <div className="space-y-2">
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date"
-                        variant={"outline"}
-                        className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date?.from ? (
-                        date.to ? (
-                            <>
-                            {format(date.from, "LLL dd, y")} -{" "}
-                            {format(date.to, "LLL dd, y")}
-                            </>
-                        ) : (
-                            format(date.from, "LLL dd, y")
-                        )
-                        ) : (
-                        <span>Pick a date range</span>
-                        )}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={setDate}
-                        numberOfMonths={2}
-                        disabled={{ after: new Date() }}
-                    />
-                    </PopoverContent>
-                </Popover>
+            <div className="space-y-4 rounded-lg border p-4">
+                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !startDate && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "LLL dd, y") : <span>Start date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="single"
+                            selected={startDate}
+                            onSelect={setStartDate}
+                            disabled={{ after: endDate || new Date() }}
+                            numberOfMonths={1}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !endDate && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "LLL dd, y") : <span>End date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="single"
+                            selected={endDate}
+                            onSelect={setEndDate}
+                            disabled={{ before: startDate, after: new Date() }}
+                            numberOfMonths={1}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
                  <Button onClick={fetchAnalysisData} disabled={isAnalysisPending} className="w-full">
                     {isAnalysisPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Fetch Data
+                    Submit
                 </Button>
             </div>
             
