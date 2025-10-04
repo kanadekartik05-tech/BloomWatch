@@ -91,10 +91,10 @@ const getNdviDataFlow = ai.defineFlow(
 
             const last12MonthsData = allData.filter(d => {
                 if (d.year === currentYear) {
-                    return d.monthIndex < currentMonthIndex; // Only include past months for current year
+                    return d.monthIndex <= currentMonthIndex;
                 }
                 if (d.year === currentYear - 1) {
-                    return d.monthIndex >= currentMonthIndex; // Include remaining months from last year
+                    return d.monthIndex > currentMonthIndex;
                 }
                 return false;
             });
@@ -102,10 +102,25 @@ const getNdviDataFlow = ai.defineFlow(
             last12MonthsData.sort((a, b) => {
                 const aSort = a.year * 100 + a.monthIndex;
                 const bSort = b.year * 100 + b.monthIndex;
-                return aSort - bSort;
+                if (a.monthIndex > currentMonthIndex && b.monthIndex <= currentMonthIndex) {
+                    return -1;
+                }
+                if (b.monthIndex > currentMonthIndex && a.monthIndex <= currentMonthIndex) {
+                    return 1;
+                }
+                return a.monthIndex - b.monthIndex;
+            });
+            
+            const finalSortedData = [...last12MonthsData].sort((a,b) => {
+                let aDate = new Date(a.year, a.monthIndex);
+                let bDate = new Date(b.year, b.monthIndex);
+                if (aDate < startDate) aDate.setFullYear(aDate.getFullYear() + 1);
+                if (bDate < startDate) bDate.setFullYear(bDate.getFullYear() + 1);
+                return aDate.getTime() - bDate.getTime();
             });
 
-            return last12MonthsData.map(d => ({
+
+            return finalSortedData.map(d => ({
                 month: d.month,
                 value: d.value,
             }));

@@ -49,8 +49,11 @@ export function ClimateView({ regions }: ClimateViewProps) {
   );
 
   useEffect(() => {
+    if (!selectedRegion) return;
+    
     startTransition(async () => {
         setError(null);
+        setClimateData(null);
         const result = await fetchClimateDataForRegion({
             lat: selectedRegion.lat,
             lon: selectedRegion.lon,
