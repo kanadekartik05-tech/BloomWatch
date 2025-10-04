@@ -1,7 +1,7 @@
 import { Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ClimateView } from './components/climate-view';
-import { regions } from '@/lib/data';
+import { geodata, allCountries } from '@/lib/geodata';
 
 export const metadata = {
     title: 'Climate Data | BloomWatch',
@@ -37,7 +37,7 @@ export default function ClimatePage() {
                     Explore historical climate data for different regions.
                 </p>
             </div>
-            <ClimateView regions={regions} />
+            <ClimateView geodata={geodata} allCountries={allCountries} />
         </div>
     );
 }
