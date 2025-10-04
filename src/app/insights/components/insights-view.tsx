@@ -35,7 +35,7 @@ const chartConfig: ChartConfig = {
   },
 };
 
-export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
+export function InsightsView({ geodata, allCountries: extraCountries }: InsightsViewProps) {
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   
@@ -52,6 +52,18 @@ export function InsightsView({ geodata, allCountries }: InsightsViewProps) {
   const [vegetationError, setVegetationError] = useState<string | null>(null);
   const [isVegetationPending, startVegetationTransition] = useTransition();
   
+  const allCountries = useMemo(() => {
+    const mergedData = [...geodata];
+    extraCountries.forEach(country => {
+        const existingCountry = mergedData.find(c => c.name === country.name);
+        if (!existingCountry) {
+            mergedData.push(country);
+        }
+    });
+    mergedData.sort((a, b) => a.name.localeCompare(b.name));
+    return mergedData;
+  }, [geodata, extraCountries]);
+
   const countryOptions = useMemo(() => allCountries.map(c => ({ value: c.name, label: c.name })), [allCountries]);
   const stateOptions = useMemo(() => states.map(s => ({ value: s.name, label: s.name })), [states]);
   const cityOptions = useMemo(() => cities.map(c => ({ value: c.name, label: c.name })), [cities]);
