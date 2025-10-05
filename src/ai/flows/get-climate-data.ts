@@ -27,7 +27,7 @@ const getClimateDataFlow = ai.defineFlow(
         outputSchema: ClimateDataOutputSchema,
     },
     async ({ lat, lon, startDate: customStartDate, endDate: customEndDate }) => {
-        const apiKey = process.env.NASA_API_KEY;
+        const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
         
         const endDate = customEndDate ? new Date(customEndDate) : new Date();
         const startDate = customStartDate ? new Date(customStartDate) : subYears(endDate, 1);

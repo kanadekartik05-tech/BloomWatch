@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default function AnalysisPage() {
-    const apiKey = process.env.NASA_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
 
     if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
         return (
@@ -23,7 +23,7 @@ export default function AnalysisPage() {
                         <a href="https://power.larc.nasa.gov/login" target="_blank" rel="noopener noreferrer" className="underline">
                             NASA POWER
                         </a>{' '}
-                        and set the <code>NASA_API_KEY</code> environment variable.
+                        and set the <code>NEXT_PUBLIC_NASA_API_KEY</code> environment variable.
                     </AlertDescription>
                 </Alert>
             </div>
