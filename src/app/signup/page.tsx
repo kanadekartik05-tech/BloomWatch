@@ -1,3 +1,4 @@
+
 import { Suspense } from 'react';
 import { SignUpForm } from './components/signup-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
