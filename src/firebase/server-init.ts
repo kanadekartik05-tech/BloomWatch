@@ -1,40 +1,37 @@
-import { initializeApp, getApps, getApp, App, cert } from 'firebase-admin/app';
-import { firebaseConfig } from './config';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 
-// This is a server-only file.
-const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8'))
-  : undefined;
+// This is a server-only file. It is NOT safe to use on the client.
 
 // Memoize the initialized app
 let adminApp: App | null = null;
 
-export async function initializeFirebaseAdmin() {
+function getServiceAccount() {
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccountString) {
+        throw new Error('The FIREBASE_SERVICE_ACCOUNT environment variable is not set. This is required for server-side operations.');
+    }
+    try {
+        return JSON.parse(Buffer.from(serviceAccountString, 'base64').toString('utf-8'));
+    } catch (e) {
+        throw new Error('Failed to parse the FIREBASE_SERVICE_ACCOUNT. Make sure it is a base64-encoded JSON string.');
+    }
+}
+
+export function initializeFirebaseAdmin() {
   if (adminApp) {
     return adminApp;
   }
-  
-  // Check if an app is already initialized (e.g., by another function call)
-  if (getApps().length > 0) {
-    adminApp = getApp();
-    return adminApp;
+
+  // Check if an app is already initialized. If not, initialize one.
+  if (!getApps().length) {
+    const serviceAccount = getServiceAccount();
+    adminApp = initializeApp({
+      credential: cert(serviceAccount)
+    });
+  } else {
+    // If it is initialized, get the default app.
+    adminApp = getApps()[0];
   }
 
-  if (!serviceAccountKey) {
-    console.warn('FIREBASE_SERVICE_ACCOUNT not set. Admin SDK calls will fail.');
-    // We return null and let the calling function handle the absence of the admin app
-    return null;
-  }
-  
-  try {
-    adminApp = initializeApp({
-      credential: cert(serviceAccountKey),
-      projectId: firebaseConfig.projectId,
-    });
-    return adminApp;
-  } catch (error) {
-    console.error("Failed to initialize Firebase Admin SDK:", error);
-    // In case of initialization error, we also return null
-    return null;
-  }
+  return adminApp;
 }

@@ -1,7 +1,6 @@
 
 import { DashboardView } from './components/dashboard-view';
 import { History } from './components/history';
-import { regions } from '@/lib/data';
 
 export const metadata = {
   title: 'Dashboard | BloomWatch',
