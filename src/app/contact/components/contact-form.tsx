@@ -63,7 +63,6 @@ export function ContactForm() {
     <Form {...form}>
       <form
         action={formAction}
-        onSubmit={form.handleSubmit(data => formAction(new FormData(form.control._formValues.current)))}
         className="space-y-6"
       >
         <FormField
