@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo } from 'react';
@@ -6,7 +5,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader, List, Flower, BarChart3, MessageCircle, Sprout, PersonStanding } from 'lucide-react';
+import { Loader, List, Flower, BarChart3, MessageCircle, Sprout, PersonStanding, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 
@@ -176,5 +175,3 @@ export function History() {
         </Card>
     );
 }
-
-    
