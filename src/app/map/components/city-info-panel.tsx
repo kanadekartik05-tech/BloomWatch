@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { useUser } from '@/firebase';
 
 
 type CityInfoPanelProps = {
@@ -52,6 +53,7 @@ const vegetationChartConfig: ChartConfig = {
 
 
 export function CityInfoPanel({ city, state, country, onBackToStates, onClose }: CityInfoPanelProps) {
+    const { user } = useUser();
     const [isAnalysisPending, startAnalysisTransition] = useTransition();
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
@@ -84,7 +86,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
             const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
 
-            const result = await getAnalysisForCity(city, start, end);
+            const result = await getAnalysisForCity(city, user?.uid, start, end);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -110,7 +112,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
           setPrediction(null);
           setPredictionError(null);
           
-          const result = await getBloomPredictionForCity(city);
+          const result = await getBloomPredictionForCity(city, user?.uid);
     
           if (result.success && result.data) {
             setPrediction(result.data);
@@ -130,7 +132,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                 locationName: city.name,
                 climateData,
                 vegetationData,
-            });
+            }, user?.uid);
             if (result.success) {
                 setSummary(result.data.summary);
             } else {

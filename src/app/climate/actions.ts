@@ -6,9 +6,8 @@ import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
 import type { ClimateDataInput, ClimateDataOutput, ChartDataSummaryInput, ChartDataSummaryOutput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
-import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 
 type ClimateResult = {
@@ -35,18 +34,15 @@ type SummaryResult = {
     error: string;
 }
 
-async function logHistoryEvent(type: 'CLIMATE_SUMMARY', regionName: string) {
+async function logHistoryEvent(userId: string, type: 'CLIMATE_SUMMARY', regionName: string) {
     try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
-            await addDoc(historyCollection, {
-                type,
-                regionName,
-                createdAt: serverTimestamp(),
-            });
-        }
+        const { firestore } = initializeFirebase();
+        const historyCollection = collection(firestore, 'users', userId, 'history');
+        await addDoc(historyCollection, {
+            type,
+            regionName,
+            createdAt: serverTimestamp(),
+        });
     } catch (error) {
         console.error("Failed to log history event:", error);
     }
@@ -87,12 +83,13 @@ export async function fetchVegetationDataForRegion(input: ClimateDataInput): Pro
     }
 }
 
-export async function getChartSummary(input: ChartDataSummaryInput): Promise<SummaryResult> {
+export async function getChartSummary(input: ChartDataSummaryInput, userId?: string): Promise<SummaryResult> {
     try {
         const result = await summarizeChartData(input);
         
-        // Log the summary event to history without blocking the response
-        logHistoryEvent('CLIMATE_SUMMARY', input.locationName);
+        if (userId) {
+            logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
+        }
 
         return { success: true, data: result };
     } catch(error) {

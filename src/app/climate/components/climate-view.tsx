@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useUser } from '@/firebase';
 
 type ClimateViewProps = {
   geodata: Country[];
@@ -40,6 +41,7 @@ const chartConfig: ChartConfig = {
 };
 
 export function ClimateView({ geodata, allCountries: extraCountries }: ClimateViewProps) {
+  const { user } = useUser();
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   
@@ -190,7 +192,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
   useEffect(() => {
     // Automatically fetch data when a location is selected, without a date range
     fetchData(false);
-  }, [representativeLocation, fetchData]);
+  }, [representativeLocation]);
 
 
   const handleGenerateSummary = () => {
@@ -206,7 +208,7 @@ export function ClimateView({ geodata, allCountries: extraCountries }: ClimateVi
             vegetationData,
         };
         
-        const result = await getChartSummary(summaryInput);
+        const result = await getChartSummary(summaryInput, user?.uid);
 
         if (result.success) {
             setSummary(result.data.summary);

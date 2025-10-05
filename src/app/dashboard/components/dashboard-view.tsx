@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
+import { useUser } from '@/firebase';
 
 
 type RegionPrediction = {
@@ -39,6 +40,7 @@ const vegetationChartConfig: ChartConfig = {
 };
 
 export function DashboardView({ initialRegions }: { initialRegions: Region[] }) {
+    const { user } = useUser();
     const [isPending, startTransition] = useTransition();
     const [predictions, setPredictions] = useState<RegionPrediction[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                 setPredictions([]);
                 return;
             }
-            const result = await getBatchPredictions(regionsToFetch);
+            const result = await getBatchPredictions(regionsToFetch, user?.uid);
             if (result.success) {
                 const newPredictions = regionsToFetch.map((region, index) => ({
                     region,
@@ -94,7 +96,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                 setError(result.error);
             }
         });
-    }, [displayRegions]);
+    }, [displayRegions, user]);
 
     useEffect(() => {
         fetchPredictions(displayRegions);

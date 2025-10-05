@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
+import { useUser } from '@/firebase';
 
 type StateInfoPanelProps = {
   state: State | null;
@@ -50,6 +51,7 @@ const vegetationChartConfig: ChartConfig = {
 
 
 export function StateInfoPanel({ state, country, onBackToCountries, onClose }: StateInfoPanelProps) {
+    const { user } = useUser();
     const [isAnalysisPending, startAnalysisTransition] = useTransition();
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
@@ -91,7 +93,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
         startAnalysisTransition(async () => {
             const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
             const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
-            const result = await getAnalysisForCity(representativeCity, start, end);
+            const result = await getAnalysisForCity(representativeCity, user?.uid, start, end);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -118,7 +120,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
           setPrediction(null);
           setPredictionError(null);
           
-          const result = await getBloomPredictionForCity(representativeCity);
+          const result = await getBloomPredictionForCity(representativeCity, user?.uid);
     
           if (result.success && result.data) {
             setPrediction(result.data);
@@ -138,7 +140,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                 locationName: state.name,
                 climateData,
                 vegetationData,
-            });
+            }, user?.uid);
             if (result.success) {
                 setSummary(result.data.summary);
             } else {

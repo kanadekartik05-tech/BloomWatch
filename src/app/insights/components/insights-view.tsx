@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { useUser } from '@/firebase';
 
 
 type InsightsViewProps = {
@@ -36,6 +37,7 @@ const chartConfig: ChartConfig = {
 };
 
 export function InsightsView({ geodata, allCountries: extraCountries }: InsightsViewProps) {
+  const { user } = useUser();
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   
@@ -178,6 +180,7 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
         lat: representativeLocation.lat,
         lon: representativeLocation.lon,
         ndviData: vegetationData,
+        userId: user?.uid,
       });
 
       if (result.success && result.data) {
@@ -346,5 +349,3 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
     </div>
   );
 }
-
-    

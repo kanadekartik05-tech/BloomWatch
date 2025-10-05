@@ -7,9 +7,8 @@ import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import type { ClimateDataInput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
-import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 
 type PredictionResult = {
@@ -28,19 +27,16 @@ type NdviResult = {
     error: string;
 };
 
-async function logHistoryEvent(type: 'PREDICTION', regionName: string, predictedDate: string) {
+async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: string, predictedDate: string) {
     try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
-            await addDoc(historyCollection, {
-                type,
-                regionName,
-                predictedDate,
-                createdAt: serverTimestamp(),
-            });
-        }
+        const { firestore } = initializeFirebase();
+        const historyCollection = collection(firestore, 'users', userId, 'history');
+        await addDoc(historyCollection, {
+            type,
+            regionName,
+            predictedDate,
+            createdAt: serverTimestamp(),
+        });
     } catch (error) {
         console.error("Failed to log history event:", error);
     }
@@ -67,8 +63,7 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 }
 
 
-// This combines fetching climate data and gettings a prediction into one action.
-export async function getEnhancedBloomPrediction(input: { cityName: string, lat: number, lon: number, ndviData: NdviDataOutput }): Promise<PredictionResult> {
+export async function getEnhancedBloomPrediction(input: { cityName: string, lat: number, lon: number, ndviData: NdviDataOutput, userId?: string }): Promise<PredictionResult> {
     try {
         // 1. Fetch climate data first
         const climateInput: ClimateDataInput = { lat: input.lat, lon: input.lon };
@@ -89,8 +84,9 @@ export async function getEnhancedBloomPrediction(input: { cityName: string, lat:
         
         const result = await predictNextBloomDate(predictionInput);
 
-        // Log the prediction event to history
-        logHistoryEvent('PREDICTION', input.cityName, result.predictedNextBloomDate);
+        if (input.userId) {
+            logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result.predictedNextBloomDate);
+        }
         
         return { success: true, data: result };
 
