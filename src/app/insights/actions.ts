@@ -1,17 +1,18 @@
 
 'use server';
 
-import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
-import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput } from "@/ai/flows/types";
+import type { PredictNextBloomDateOutput, ClimateDataInput } from "@/ai/flows/types";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
+import { getBloomAnalysis as getBloomAnalysisFlow } from "@/ai/flows/get-bloom-analysis";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { City, State, Country } from "@/lib/geodata";
 
 
-type SummaryResult = {
+type AnalysisResult = {
     success: true;
-    data: ChartDataSummaryOutput;
+    data: PredictNextBloomDateOutput;
 } | {
     success: false;
     error: string;
@@ -25,15 +26,24 @@ type NdviResult = {
     error: string;
 };
 
-async function logHistoryEvent(userId: string, type: 'CLIMATE_SUMMARY', regionName: string, summary: string) {
+async function logHistoryEvent(
+    userId: string,
+    city: City,
+    state: State | null,
+    country: Country | null,
+    prediction: PredictNextBloomDateOutput
+) {
     try {
         await initializeFirebaseAdmin();
         const firestore = getFirestore();
         const historyCollection = firestore.collection('users').doc(userId).collection('history');
         await historyCollection.add({
-            type,
-            regionName,
-            summary,
+            type: 'PREDICTION',
+            regionName: city.name,
+            city: city.name,
+            state: state?.name || null,
+            country: country?.name || null,
+            prediction,
             createdAt: new Date(),
         });
     } catch (error) {
@@ -62,20 +72,29 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 }
 
 
-export async function getChartSummary(input: ChartDataSummaryInput, userId?: string): Promise<SummaryResult> {
+export async function getBloomAnalysis(
+    city: City,
+    state: State | null,
+    country: Country | null,
+    vegetationData: NdviDataOutput,
+    userId?: string
+): Promise<AnalysisResult> {
     try {
-        const result = await summarizeChartData(input);
+        const result = await getBloomAnalysisFlow({
+            locationName: city.name,
+            vegetationData: vegetationData,
+        });
 
         if (userId) {
-            await logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName, result.summary);
+            await logHistoryEvent(userId, city, state, country, result);
         }
         
         return { success: true, data: result };
 
     } catch (error) {
-        console.error("Error getting chart summary:", error);
+        console.error("Error getting bloom analysis:", error);
         
-        let errorMessage = "Failed to get summary from AI.";
+        let errorMessage = "Failed to get analysis from AI.";
         if (error instanceof Error) {
             errorMessage = error.message;
         }

@@ -34,7 +34,7 @@ const eventConfig = {
     ANALYSIS: {
         icon: BarChart3,
         color: "text-blue-500",
-        title: (region: string) => `Analyzed charts for ${region}`,
+        title: (region: string) => `Viewed charts for ${region}`,
     },
     CLIMATE_SUMMARY: {
         icon: MessageCircle,
@@ -148,7 +148,7 @@ export function History() {
                                                 </div>
                                             </div>
                                         )}
-                                        {item.type === 'ANALYSIS' && (
+                                        {(item.type === 'ANALYSIS' || item.type === 'CLIMATE_SUMMARY' && !item.summary) && (
                                              <div className="border-t pt-4 mt-2">
                                                 <p className="text-sm text-muted-foreground">Viewed climate and vegetation charts for this location.</p>
                                             </div>

@@ -13,12 +13,12 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { getChartSummary, fetchNdviDataForRegion } from '../actions';
-import { Loader, Wand2, Info, MessageSquareText, AlertTriangle } from 'lucide-react';
+import { getBloomAnalysis, fetchNdviDataForRegion } from '../actions';
+import { Loader, Wand2, Info, AlertTriangle, Flower, Sprout, PersonStanding } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { ChartDataSummaryInput } from '@/ai/flows/types';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { Combobox } from '@/components/ui/combobox';
 import { useUser } from '@/firebase';
 
 
@@ -44,9 +44,9 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
   const [selectedCityName, setSelectedCityName] = useState<string>('');
   const [info, setInfo] = useState<string | null>(null);
 
-  const [summary, setSummary] = useState<string | null>(null);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [isSummaryPending, startSummaryTransition] = useTransition();
+  const [analysis, setAnalysis] = useState<PredictNextBloomDateOutput | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isAnalysisPending, startAnalysisTransition] = useTransition();
 
   const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
   const [vegetationError, setVegetationError] = useState<string | null>(null);
@@ -82,8 +82,8 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
 
 
   const resetSelection = (level: 'country' | 'state' | 'city') => {
-    setSummary(null);
-    setSummaryError(null);
+    setAnalysis(null);
+    setAnalysisError(null);
     setVegetationData(null);
     setVegetationError(null);
     setInfo(null);
@@ -132,17 +132,17 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
   useEffect(() => {
     if (!representativeLocation) {
       setVegetationData(null);
-      setSummary(null);
+      setAnalysis(null);
       setVegetationError(null);
-      setSummaryError(null);
+      setAnalysisError(null);
       return
     };
 
     startVegetationTransition(async () => {
         setVegetationData(null);
-        setSummary(null);
+        setAnalysis(null);
         setVegetationError(null);
-        setSummaryError(null);
+        setAnalysisError(null);
 
         const result = await fetchNdviDataForRegion({
             lat: representativeLocation.lat,
@@ -163,27 +163,26 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
     return Math.max(...vegetationData.map(d => d.value))
   }, [vegetationData]);
   
-  const locationNameForAI = selectedCity?.name || selectedState?.name;
 
-  const handleGenerateSummary = () => {
-    if (!locationNameForAI || !vegetationData) return;
+  const handleGenerateAnalysis = () => {
+    if (!representativeLocation || !vegetationData) return;
 
-    startSummaryTransition(async () => {
-        setSummary(null);
-        setSummaryError(null);
+    startAnalysisTransition(async () => {
+        setAnalysis(null);
+        setAnalysisError(null);
         
-        const summaryInput: ChartDataSummaryInput = {
-            locationName: locationNameForAI,
-            climateData: [], // Not needed for this summary
+        const result = await getBloomAnalysis(
+            representativeLocation,
+            selectedState,
+            selectedCountry,
             vegetationData,
-        };
-        
-        const result = await getChartSummary(summaryInput, user?.uid);
+            user?.uid
+        );
 
         if (result.success) {
-            setSummary(result.data.summary);
+            setAnalysis(result.data);
         } else {
-            setSummaryError(result.error);
+            setAnalysisError(result.error);
         }
     });
   }
@@ -206,7 +205,7 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
       <Card>
         <CardHeader>
           <CardTitle>Location Selection</CardTitle>
-          <CardDescription>Choose a location to analyze its vegetation data and generate an AI-powered summary.</CardDescription>
+          <CardDescription>Choose a location to analyze its vegetation data and generate an AI-powered bloom analysis.</CardDescription>
         </CardHeader>
         <CardContent className="w-full md:w-96 space-y-4">
              <Combobox
@@ -283,28 +282,47 @@ export function InsightsView({ geodata, allCountries: extraCountries }: Insights
                         </ChartContainer>
                         
                         <div className="space-y-4">
-                            <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isVegetationPending || !vegetationData} className="w-full">
-                                {isSummaryPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                                Generate Summary
+                            <Button onClick={handleGenerateAnalysis} disabled={isAnalysisPending || isVegetationPending || !vegetationData} className="w-full">
+                                {isAnalysisPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                Analyze Bloom Cycle
                             </Button>
-                            {isSummaryPending && (
+                            {isAnalysisPending && (
                                 <div className="flex items-center text-sm text-muted-foreground">
                                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating summary...
+                                    Generating analysis...
                                 </div>
                             )}
-                            {summaryError && !isSummaryPending && (
+                            {analysisError && !isAnalysisPending && (
                                 <Alert variant="destructive">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Summary Failed</AlertTitle>
-                                    <AlertDescription>{summaryError}</AlertDescription>
+                                    <AlertTitle>Analysis Failed</AlertTitle>
+                                    <AlertDescription>{analysisError}</AlertDescription>
                                 </Alert>
                             )}
-                            {summary && !isSummaryPending && (
-                                <Alert>
-                                    <AlertTitle>Analysis Summary</AlertTitle>
-                                    <AlertDescription>{summary}</AlertDescription>
-                                </Alert>
+                             {analysis && !isAnalysisPending && (
+                                <Card className="shadow-lg">
+                                    <CardHeader>
+                                        <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
+                                        <Flower className="h-6 w-6"/> AI Botanical Analysis
+                                        </CardTitle>
+                                        <CardDescription>{analysis.predictionJustification}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Suitable Flower Species</h3>
+                                            <p className="text-muted-foreground text-sm">{analysis.potentialSpecies}</p>
+
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
+                                            <p className="text-muted-foreground text-sm">{analysis.ecologicalSignificance}</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
+                                            <p className="text-muted-foreground text-sm">{analysis.humanImpact}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             )}
                         </div>
                     </div>
