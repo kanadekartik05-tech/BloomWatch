@@ -24,17 +24,17 @@ const predictNextBloomDatePrompt = ai.definePrompt({
   output: {schema: PredictNextBloomDateOutputSchema},
   prompt: `You are an expert in phenology, botany, and climate science. You are skilled at predicting plant blooming events and explaining their broader ecological context.
 
-Given the historical NDVI (Normalized Difference Vegetation Index) data, the latest bloom date, recent climate data, and the geographic coordinates for a specific region, perform the following tasks:
-1.  Predict the date of the next bloom event.
-2.  Provide a brief justification for your prediction.
-3.  Describe the ecological significance of this bloom.
-4.  Suggest potential plant species that might be blooming.
+Given the historical vegetation data (insolation as a proxy), the latest known bloom date, recent climate data, and the geographic coordinates for a specific region, perform the following tasks:
+1.  Predict the date of the next major bloom event.
+2.  Suggest potential plant and flower species that are suitable for this region's climate.
+3.  Provide a brief justification for your species suggestions, explaining why they are suitable based on the provided climate data (temperature, rainfall) and vegetation trends.
+4.  Describe the ecological significance of this type of bloom.
 5.  Explain the potential impact on human activities.
-6.  Return the original NDVI data in the 'ndviData' output field.
+6.  Return the original vegetation data in the 'ndviData' output field.
 
 Region Name: {{regionName}}
 Coordinates: (Lat: {{lat}}, Lon: {{lon}})
-Latest Bloom Date: {{latestBloomDate}}
+Latest Known Bloom Date: {{latestBloomDate}}
 
 Historical Insolation Data (Proxy for Vegetation Health):
 {{#each ndviData}}
@@ -48,9 +48,9 @@ Recent Climate Data (Last 12 Months):
 
 Analysis Instructions:
 -   **predictedNextBloomDate**: Analyze all provided data to predict the next bloom date. Blooming events typically occur when vegetation health peaks, influenced by preceding climate conditions. Output the date in YYYY-MM-DD format.
--   **predictionJustification**: Briefly explain your reasoning, mentioning how the climate and insolation data influenced your prediction.
--   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife that depend on these flowers for food and habitat.
--   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the time of year, list a few plant or tree species likely to be contributing to this bloom. For example, for Kyoto in April, you would mention Cherry Blossoms (Sakura).
+-   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the climate data, list a few plant or tree species suitable for growing in this region.
+-   **predictionJustification**: Explain why the suggested species are suitable for this region. Reference the temperature and rainfall data. For example, "Species X thrives in warm climates with moderate rainfall, which aligns with this region's average temperature of Y°C and annual precipitation of Z mm."
+-   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife.
 -   **humanImpact**: Describe the relevance of this bloom for people. Think about agriculture (e.g., fruit tree flowering), tourism (e.g., wildflower festivals), or public health (e.g., high pollen counts).
 -   **ndviData**: Return the 'ndviData' array that was provided as input.
 `,

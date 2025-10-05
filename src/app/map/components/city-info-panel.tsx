@@ -335,8 +335,8 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>AI Prediction</CardTitle>
-                            <CardDescription>Generate an AI-powered prediction for the next bloom season.</CardDescription>
+                            <CardTitle>AI Botanical Analysis</CardTitle>
+                            <CardDescription>Get AI-powered suggestions for suitable plant species and bloom predictions.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Button onClick={handlePredict} disabled={isAIPending || isAnalysisPending || !vegetationData}>
@@ -345,7 +345,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                                 ) : (
                                     <Wand2 className="mr-2 h-4 w-4" />
                                 )}
-                                Predict Next Blossom Season
+                                Analyze Region
                             </Button>
                             {isAIPending && (
                                 <div className="mt-4 flex items-center text-sm text-muted-foreground">
@@ -356,7 +356,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                             {predictionError && !isAIPending && (
                                  <Alert variant="destructive" className="mt-4">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Prediction Failed</AlertTitle>
+                                    <AlertTitle>Analysis Failed</AlertTitle>
                                     <AlertDescription>{predictionError}</AlertDescription>
                                  </Alert>
                             )}
@@ -366,25 +366,28 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                     {prediction && !isAIPending && (
                         <Card className="shadow-lg">
                             <CardHeader>
-                                <CardTitle className="text-xl font-bold text-primary">
-                                    Predicted Bloom Date: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
+                                   <Flower className="h-6 w-6"/> AI Analysis & Prediction
                                 </CardTitle>
-                                <CardDescription>{prediction.predictionJustification}</CardDescription>
+                                <CardDescription>Predicted bloom date for {city?.name}: <span className="text-primary font-semibold">{new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Suitable Species</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
+
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><Wand2 className="text-accent"/>Justification</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.predictionJustification}</p>
+                                </div>
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
                                     <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
-                                    <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
-
-                                </div>
-                                <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
                                     <p className="text-muted-foreground text-sm">{prediction.humanImpact}</p>
-
                                 </div>
                             </CardContent>
                         </Card>
