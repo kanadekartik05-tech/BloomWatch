@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useTransition, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useTransition, useMemo, useCallback } from 'react';
 import type { Region } from '@/lib/data';
 import { getBatchPredictions } from '../actions';
 import type { SinglePredictionResult } from '../actions';
@@ -225,7 +226,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
 
                         return (
                             <DialogTrigger asChild key={key}>
-                                <Card className="flex flex-col justify-between hover:shadow-lg transition-shadow relative cursor-pointer">
+                                <Card className="flex flex-col justify-between hover:shadow-lg transition-shadow relative cursor-pointer" onClick={() => setSelectedRegionDetails(predictionResult.data)}>
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 z-10" onClick={(e) => { e.stopPropagation(); handleRemoveRegion(region); }}>
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -270,49 +271,47 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                     {isPending && <div className="flex items-center gap-2 text-muted-foreground"><Loader className="h-6 w-6 animate-spin" /><p>Fetching new prediction...</p></div>}
                 </div>
                 <DialogContent className="max-w-3xl">
-                     {predictions.map(({ region, predictionResult }) => (
-                         predictionResult.success && (
-                            <React.Fragment key={`${region.name}-${predictionResult.data.predictedNextBloomDate}`}>
-                                <DialogHeader>
-                                    <DialogTitle className="text-2xl font-bold text-primary">
-                                        Predicted Bloom Date: {new Date(predictionResult.data.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                    </DialogTitle>
-                                    <DialogDescription>{predictionResult.data.predictionJustification}</DialogDescription>
-                                </DialogHeader>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
-                                            <p className="text-muted-foreground text-sm">{predictionResult.data.ecologicalSignificance}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
-                                            <p className="text-muted-foreground text-sm">{predictionResult.data.potentialSpecies}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
-                                            <p className="text-muted-foreground text-sm">{predictionResult.data.humanImpact}</p>
-                                        </div>
+                     {selectedRegionDetails && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-2xl font-bold text-primary">
+                                    Predicted Bloom Date: {new Date(selectedRegionDetails.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                </DialogTitle>
+                                <DialogDescription>{selectedRegionDetails.predictionJustification}</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
+                                        <p className="text-muted-foreground text-sm">{selectedRegionDetails.ecologicalSignificance}</p>
                                     </div>
-                                    <div className="space-y-4">
-                                        <h3 className="font-semibold flex items-center gap-2"><BarChart3 className="text-accent"/>Vegetation Trend</h3>
-                                        <ChartContainer config={vegetationChartConfig} className="h-48 w-full">
-                                            <BarChart data={predictionResult.data.ndviData} accessibilityLayer>
-                                                <CartesianGrid vertical={false} />
-                                                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
-                                                <YAxis tickLine={false} axisLine={false} tickMargin={10} fontSize={12}/>
-                                                <ChartTooltip
-                                                    cursor={false}
-                                                    content={<ChartTooltipContent indicator="dot" />}
-                                                />
-                                                <Bar dataKey="value" fill="var(--color-value)" radius={4} />
-                                            </BarChart>
-                                        </ChartContainer>
+                                    <div className="space-y-2">
+                                        <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
+                                        <p className="text-muted-foreground text-sm">{selectedRegionDetails.potentialSpecies}</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>
+                                        <p className="text-muted-foreground text-sm">{selectedRegionDetails.humanImpact}</p>
                                     </div>
                                 </div>
-                            </React.Fragment>
-                         )
-                     ))}
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold flex items-center gap-2"><BarChart3 className="text-accent"/>Vegetation Trend</h3>
+                                    <ChartContainer config={vegetationChartConfig} className="h-48 w-full">
+                                        <BarChart data={selectedRegionDetails.ndviData} accessibilityLayer>
+                                            <CartesianGrid vertical={false} />
+                                            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
+                                            <YAxis tickLine={false} axisLine={false} tickMargin={10} fontSize={12}/>
+                                            <ChartTooltip
+                                                cursor={false}
+                                                content={<ChartTooltipContent indicator="dot" />}
+                                            />
+                                            <Bar dataKey="value" fill="var(--color-value)" radius={4} />
+                                        </BarChart>
+                                    </ChartContainer>
+                                </div>
+                            </div>
+                        </>
+                     )}
                 </DialogContent>
             </Dialog>
         </div>
