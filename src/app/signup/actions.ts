@@ -1,9 +1,9 @@
 'use server';
 
 import { z } from 'zod';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
 
 const SignUpSchema = z.object({
   name: z.string().min(2),
@@ -27,18 +27,22 @@ export async function signup(prevState: SignUpState, formData: FormData): Promis
   }
 
   const { name, email, password } = validatedFields.data;
-  const { auth, firestore } = initializeFirebase();
 
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    await initializeFirebaseAdmin();
+    const auth = getAuth();
+    const firestore = getFirestore();
 
-    await updateProfile(user, { displayName: name });
+    const userRecord = await auth.createUser({
+        email,
+        password,
+        displayName: name,
+    });
 
-    const userRef = doc(firestore, 'users', user.uid);
-    await setDoc(userRef, {
-      uid: user.uid,
-      email: user.email,
+    const userRef = firestore.collection('users').doc(userRecord.uid);
+    await userRef.set({
+      uid: userRecord.uid,
+      email: userRecord.email,
       displayName: name,
       createdAt: new Date(),
     });
@@ -51,7 +55,7 @@ export async function signup(prevState: SignUpState, formData: FormData): Promis
     let message = 'An unexpected error occurred.';
     if (error.code) {
         switch (error.code) {
-            case 'auth/email-already-in-use':
+            case 'auth/email-already-exists':
                 message = 'This email address is already in use.';
                 break;
             case 'auth/invalid-email':
