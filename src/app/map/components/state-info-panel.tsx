@@ -5,7 +5,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, X, Maximize, Wand2, Flower, Sprout, PersonStanding, CalendarIcon, MessageSquareText } from 'lucide-react';
+import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon, MessageSquareText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnalysisForCity, getBloomPredictionForCity, getChartSummary } from '../actions';
 import {
@@ -107,8 +107,16 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
         setStartDate(undefined);
         setEndDate(undefined); 
 
-        if(representativeCity || state) {
-            fetchAnalysisData();
+        if (state) { // Ensure state is not null before proceeding
+            if (representativeCity) {
+                fetchAnalysisData();
+            } else {
+                setAnalysisError("No city data available to analyze for this state.");
+                setClimateData(null);
+                setVegetationData(null);
+                setPrediction(null);
+                setSummary(null);
+            }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [representativeCity, state]);
