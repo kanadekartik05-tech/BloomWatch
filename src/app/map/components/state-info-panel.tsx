@@ -351,8 +351,8 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>AI Prediction</CardTitle>
-                            <CardDescription>Generate an AI-powered prediction for the next bloom season.</CardDescription>
+                            <CardTitle>AI Botanical Analysis</CardTitle>
+                            <CardDescription>Get AI-powered suggestions for suitable plant species.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Button onClick={handlePredict} disabled={isAIPending || isAnalysisPending || !vegetationData || !representativeCity}>
@@ -361,7 +361,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                                 ) : (
                                     <Wand2 className="mr-2 h-4 w-4" />
                                 )}
-                                Predict Next Blossom Season
+                                Analyze Region
                             </Button>
                             {isAIPending && (
                                 <div className="mt-4 flex items-center text-sm text-muted-foreground">
@@ -372,7 +372,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                             {predictionError && !isAIPending && (
                                  <Alert variant="destructive" className="mt-4">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Prediction Failed</AlertTitle>
+                                    <AlertTitle>Analysis Failed</AlertTitle>
                                     <AlertDescription>{predictionError}</AlertDescription>
                                  </Alert>
                             )}
@@ -383,7 +383,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                         <Card className="shadow-lg">
                             <CardHeader>
                                 <CardTitle className="text-xl font-bold text-primary">
-                                    Predicted Bloom Date: {new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                    AI Analysis
                                 </CardTitle>
                                 <CardDescription>{prediction.predictionJustification}</CardDescription>
                             </CardHeader>
@@ -411,5 +411,3 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
     </Card>
   );
 }
-
-    

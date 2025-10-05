@@ -2,9 +2,9 @@
 'use server';
 
 /**
- * @fileOverview Predicts the next bloom date for a given region based on historical NDVI and climate data.
+ * @fileOverview Analyzes a region's climate and vegetation data to suggest suitable plant species.
  *
- * - predictNextBloomDate - A function that predicts the next bloom date.
+ * - predictNextBloomDate - A function that performs the analysis.
  * - PredictNextBloomDateInput - The input type for the predictNextBloomDate function.
  * - PredictNextBloomDateOutput - The return type for the predictNextBloomDate function.
  */
@@ -22,19 +22,17 @@ const predictNextBloomDatePrompt = ai.definePrompt({
   name: 'predictNextBloomDatePrompt',
   input: {schema: PredictNextBloomDateInputSchema},
   output: {schema: PredictNextBloomDateOutputSchema},
-  prompt: `You are an expert in phenology, botany, and climate science. You are skilled at predicting plant blooming events and explaining their broader ecological context.
+  prompt: `You are an expert in botany, agriculture, and climate science. You are skilled at recommending suitable plant species for a given region.
 
-Given the historical vegetation data (insolation as a proxy), the latest known bloom date, recent climate data, and the geographic coordinates for a specific region, perform the following tasks:
-1.  Predict the date of the next major bloom event.
-2.  Suggest potential plant and flower species that are suitable for this region's climate.
-3.  Provide a brief justification for your species suggestions, explaining why they are suitable based on the provided climate data (temperature, rainfall) and vegetation trends.
-4.  Describe the ecological significance of this type of bloom.
-5.  Explain the potential impact on human activities.
-6.  Return the original vegetation data in the 'ndviData' output field.
+Given the historical vegetation data (insolation as a proxy), recent climate data, and the geographic coordinates for a specific region, perform the following tasks:
+1.  Suggest potential plant and flower species (crops) that are suitable for this region's climate.
+2.  Provide a brief justification for your species suggestions, explaining why they are suitable based on the provided climate data (temperature, rainfall) and vegetation trends.
+3.  Describe the ecological significance of this type of bloom or crop cultivation in the region.
+4.  Explain the potential impact on human activities (e.g., agriculture, economy, tourism).
+5.  Return the original vegetation data in the 'ndviData' output field for display purposes.
 
 Region Name: {{regionName}}
 Coordinates: (Lat: {{lat}}, Lon: {{lon}})
-Latest Known Bloom Date: {{latestBloomDate}}
 
 Historical Insolation Data (Proxy for Vegetation Health):
 {{#each ndviData}}
@@ -47,11 +45,10 @@ Recent Climate Data (Last 12 Months):
 {{/each}}
 
 Analysis Instructions:
--   **predictedNextBloomDate**: Analyze all provided data to predict the next bloom date. Blooming events typically occur when vegetation health peaks, influenced by preceding climate conditions. Output the date in YYYY-MM-DD format.
--   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the climate data, list a few plant or tree species suitable for growing in this region.
--   **predictionJustification**: Explain why the suggested species are suitable for this region. Reference the temperature and rainfall data. For example, "Species X thrives in warm climates with moderate rainfall, which aligns with this region's average temperature of Y°C and annual precipitation of Z mm."
--   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife.
--   **humanImpact**: Describe the relevance of this bloom for people. Think about agriculture (e.g., fruit tree flowering), tourism (e.g., wildflower festivals), or public health (e.g., high pollen counts).
+-   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the climate data, list a few plant, flower, or crop species suitable for growing in this region.
+-   **predictionJustification**: Explain in detail why the suggested species are suitable. Reference the temperature and rainfall data. For example, "Species X thrives in warm climates with moderate rainfall, which aligns with this region's average temperature of Y°C and annual precipitation of Z mm."
+-   **ecologicalSignificance**: Describe why cultivating these species is important for the local ecosystem. Consider pollinators (bees, butterflies), soil health, and biodiversity.
+-   **humanImpact**: Describe the relevance of these crops for people. Think about agriculture (e.g., food source, cash crop), tourism (e.g., flower festivals), or local economy.
 -   **ndviData**: Return the 'ndviData' array that was provided as input.
 `,
 });
@@ -71,5 +68,4 @@ const predictNextBloomDateFlow = ai.defineFlow(
     return output!;
   }
 );
-
     

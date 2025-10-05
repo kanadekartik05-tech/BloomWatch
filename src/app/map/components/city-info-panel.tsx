@@ -336,7 +336,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                     <Card>
                         <CardHeader>
                             <CardTitle>AI Botanical Analysis</CardTitle>
-                            <CardDescription>Get AI-powered suggestions for suitable plant species and bloom predictions.</CardDescription>
+                            <CardDescription>Get AI-powered suggestions for suitable plant species.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Button onClick={handlePredict} disabled={isAIPending || isAnalysisPending || !vegetationData}>
@@ -367,19 +367,15 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                         <Card className="shadow-lg">
                             <CardHeader>
                                 <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
-                                   <Flower className="h-6 w-6"/> AI Analysis & Prediction
+                                   <Flower className="h-6 w-6"/> AI Analysis
                                 </CardTitle>
-                                <CardDescription>Predicted bloom date for {city?.name}: <span className="text-primary font-semibold">{new Date(prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></CardDescription>
+                                <CardDescription>{prediction.predictionJustification}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Suitable Species</h3>
                                     <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
 
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="font-semibold flex items-center gap-2"><Wand2 className="text-accent"/>Justification</h3>
-                                    <p className="text-muted-foreground text-sm">{prediction.predictionJustification}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
@@ -398,5 +394,3 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     </Card>
   );
 }
-
-    

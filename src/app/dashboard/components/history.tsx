@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -28,7 +29,7 @@ const eventConfig = {
     PREDICTION: {
         icon: Wand2,
         color: "text-purple-500",
-        title: (region: string) => `AI Prediction for ${region}`,
+        title: (region: string) => `AI Analysis for ${region}`,
     },
     ANALYSIS: {
         icon: BarChart3,
@@ -130,9 +131,6 @@ export function History() {
                                         )}
                                         {item.type === 'PREDICTION' && item.prediction && (
                                             <div className="border-t pt-4 mt-2 space-y-4">
-                                                <div className="font-semibold">
-                                                    Predicted Bloom Date: <span className="text-primary">{new Date(item.prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                                </div>
                                                 <p className="text-sm text-muted-foreground italic">"{item.prediction.predictionJustification}"</p>
                                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                     <div className="space-y-1">

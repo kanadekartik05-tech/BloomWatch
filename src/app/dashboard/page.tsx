@@ -16,7 +16,7 @@ export default function DashboardPage() {
           A real-time overview of predicted flowering events and vegetation health across key regions. Add any city to customize your view.
         </p>
       </div>
-      <DashboardView initialRegions={[]} />
+      <DashboardView />
 
       <History />
     </div>

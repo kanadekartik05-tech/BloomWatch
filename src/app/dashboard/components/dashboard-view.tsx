@@ -39,12 +39,12 @@ const vegetationChartConfig: ChartConfig = {
     },
 };
 
-export function DashboardView({ initialRegions }: { initialRegions: Region[] }) {
+export function DashboardView() {
     const { user } = useUser();
     const [isPending, startTransition] = useTransition();
     const [predictions, setPredictions] = useState<RegionPrediction[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [displayRegions, setDisplayRegions] = useState<(City | Region)[]>(initialRegions);
+    const [displayRegions, setDisplayRegions] = useState<(City | Region)[]>([]);
     const [selectedCityValue, setSelectedCityValue] = useState<string>("");
     const [selectedRegionDetails, setSelectedRegionDetails] = useState<PredictNextBloomDateOutput | null>(null);
 
@@ -115,35 +115,6 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
         setPredictions(prev => prev.filter(p => p.region.name !== regionToRemove.name || p.region.lat !== regionToRemove.lat));
     }
 
-
-    const getStatus = (predictedDate: Date) => {
-        const today = new Date();
-        const daysUntilBloom = differenceInDays(predictedDate, today);
-
-        if (isPast(predictedDate) && differenceInDays(today, predictedDate) <= 7) {
-            return { text: "Peak Bloom", color: "text-green-500", days: 0 };
-        }
-        if (isPast(predictedDate)) {
-            return { text: "Finished", color: "text-muted-foreground", days: daysUntilBloom };
-        }
-        if (isFuture(predictedDate)) {
-            return { text: `Blooming in ${daysUntilBloom} days`, color: "text-yellow-500", days: daysUntilBloom };
-        }
-        return { text: "Today", color: "text-primary", days: 0 };
-    };
-
-    const calculateProgress = (predictedDate: Date) => {
-        const bloomSeasonLength = 30; // Assume a 30-day "observation window" around the bloom
-        const today = new Date();
-        const daysUntilBloom = differenceInDays(predictedDate, today);
-
-        if (daysUntilBloom > bloomSeasonLength) return 0;
-        if (daysUntilBloom < -7) return 100;
-
-        const progress = 100 - (daysUntilBloom / bloomSeasonLength) * 100;
-        return Math.max(0, Math.min(100, progress));
-    };
-
     return (
         <div>
             <Card className="mb-8">
@@ -213,10 +184,6 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                             );
                         }
 
-                        const predictedDate = new Date(predictionResult.data.predictedNextBloomDate);
-                        const status = getStatus(predictedDate);
-                        const progress = calculateProgress(predictedDate);
-
                         return (
                             <DialogTrigger asChild key={key}>
                                 <Card className="flex flex-col justify-between hover:shadow-lg transition-shadow relative cursor-pointer" onClick={() => setSelectedRegionDetails(predictionResult.data)}>
@@ -233,27 +200,12 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                                         <div className="space-y-2">
                                             <div className="flex items-baseline justify-between">
                                                 <div className="flex items-center gap-2 font-semibold">
-                                                    <Flower className="h-5 w-5 text-primary" />
-                                                    <span>Predicted Bloom</span>
+                                                    <Sprout className="h-5 w-5 text-primary" />
+                                                    <span>Suitable Species</span>
                                                 </div>
-                                                <span className="text-lg font-bold text-primary">
-                                                    {format(predictedDate, "MMMM do")}
-                                                </span>
                                             </div>
-                                            <div className="flex items-baseline justify-between text-sm">
-                                                <div className="flex items-center gap-2 font-semibold">
-                                                    <CalendarDays className="h-5 w-5 text-muted-foreground" />
-                                                    <span>Status</span>
-                                                </div>
-                                                <span className={`font-bold ${status.color}`}>
-                                                    {status.text}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <Progress value={progress} className="h-2" />
-                                            <p className="mt-1 text-right text-xs text-muted-foreground">
-                                                Bloom Timeline
+                                             <p className="text-sm text-muted-foreground line-clamp-3">
+                                                {predictionResult.data.potentialSpecies}
                                             </p>
                                         </div>
                                     </CardContent>
@@ -268,7 +220,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                         <>
                             <DialogHeader>
                                 <DialogTitle className="text-2xl font-bold text-primary">
-                                    Predicted Bloom Date: {new Date(selectedRegionDetails.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                    Botanical Analysis
                                 </DialogTitle>
                                 <DialogDescription>{selectedRegionDetails.predictionJustification}</DialogDescription>
                             </DialogHeader>
