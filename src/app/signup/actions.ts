@@ -1,9 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeFirebaseAdmin } from '@/firebase/server-init';
-import type { UserRecord } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+
 
 const CreateUserProfileSchema = z.object({
   uid: z.string(),
@@ -18,12 +19,8 @@ type CreateUserProfileState = {
 
 // This is now a dedicated server action to create a user's profile
 // in Firestore after they have been created on the client.
-export async function createUserProfile(user: UserRecord): Promise<CreateUserProfileState> {
-  const validatedFields = CreateUserProfileSchema.safeParse({
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-  });
+export async function createUserProfile(userData: z.infer<typeof CreateUserProfileSchema>): Promise<CreateUserProfileState> {
+  const validatedFields = CreateUserProfileSchema.safeParse(userData);
 
   if (!validatedFields.success) {
     return {
@@ -35,11 +32,13 @@ export async function createUserProfile(user: UserRecord): Promise<CreateUserPro
   const { uid, email, displayName } = validatedFields.data;
 
   try {
-    await initializeFirebaseAdmin();
-    const firestore = getFirestore();
+    // This is a server component, but we need a firestore instance.
+    // We can get it from the client-side initialization because this action
+    // is called from the client.
+    const { firestore } = initializeFirebase();
 
-    const userRef = firestore.collection('users').doc(uid);
-    await userRef.set({
+    const userRef = doc(firestore, 'users', uid);
+    await setDoc(userRef, {
       uid: uid,
       email: email,
       displayName: displayName,

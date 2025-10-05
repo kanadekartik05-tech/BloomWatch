@@ -59,30 +59,15 @@ export function SignUpForm() {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
         
-        // Update profile on the client
         await updateProfile(userCredential.user, { displayName: data.name });
 
-        // Call server action to create Firestore document
-        // We need to construct a UserRecord-like object for the server action
-        const userForServer = {
+        // Call server action to create Firestore document.
+        // We now pass a plain object.
+        await createUserProfile({
             uid: userCredential.user.uid,
-            email: userCredential.user.email,
+            email: data.email,
             displayName: data.name,
-            providerData: userCredential.user.providerData,
-            emailVerified: userCredential.user.emailVerified,
-            phoneNumber: userCredential.user.phoneNumber,
-            photoURL: userCredential.user.photoURL,
-            disabled: userCredential.user.disabled,
-            metadata: userCredential.user.metadata,
-            tenantId: userCredential.user.tenantId,
-            customClaims: {}, // Not available on client
-            tokensValidAfterTime: undefined, // Not available on client
-            toJSON: () => ({...userCredential.user})
-        }
-        
-        // This is a type assertion because the client User object is slightly different
-        // from the admin SDK's UserRecord. This is safe for our use case.
-        await createUserProfile(userForServer as any);
+        });
 
     } catch(error: any) {
         let message = 'An unexpected error occurred.';

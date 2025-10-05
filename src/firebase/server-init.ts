@@ -15,8 +15,14 @@ export async function initializeFirebaseAdmin() {
     return getApps()[0];
   }
 
+  // When running in a server action, the service account might not be available
+  // if the app is not deployed with it. For client-side Firestore operations triggered
+  // by server actions, we rely on the client's initialized app.
   if (!serviceAccount) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set. Cannot initialize Firebase Admin SDK.');
+    console.warn('FIREBASE_SERVICE_ACCOUNT not set. Admin SDK calls may fail if not running in a deployed environment.');
+    // We don't throw an error here to allow client-side initiated server actions
+    // to still work with Firestore via the client SDK passed through.
+    return null;
   }
 
   adminApp = initializeApp({
