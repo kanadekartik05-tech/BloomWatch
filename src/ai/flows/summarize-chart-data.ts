@@ -21,18 +21,17 @@ const summarizeChartDataPrompt = ai.definePrompt({
     name: 'summarizeChartDataPrompt',
     input: { schema: ChartDataSummaryInputSchema },
     output: { schema: ChartDataSummaryOutputSchema },
-    prompt: `You are a helpful data analyst. Your job is to look at climate and vegetation data and explain it in a very simple, concise, and easy-to-understand way for a non-technical user.
+    prompt: `You are a helpful data analyst. Your job is to look at vegetation data and explain it in a very simple, concise, and easy-to-understand way for a non-technical user.
 
 Location: {{locationName}}
 
-Analyze the provided climate (temperature and rainfall) and vegetation (insolation proxy) data below. Identify the key trends, peaks, and relationships. Then, generate a short summary (2-3 sentences) that explains what the charts are showing.
+Analyze the provided vegetation data below, which uses 'All Sky Insolation' as a proxy for vegetation health.
+- Identify the month(s) with the highest insolation value (peak vegetation).
+- Identify the month(s) with the lowest insolation value.
+- Describe the general trend over the year (e.g., "Vegetation activity starts low in winter, peaks in summer, and then declines in autumn.").
+- Generate a short, narrative summary (2-3 sentences) that explains what this chart is showing about the yearly cycle of plant life in the area.
 
-Focus on simple language. For example, instead of "NDVI values peaked in August", say "The plants were greenest and healthiest in August".
-
-Climate Data:
-{{#each climateData}}
-- {{month}}: Temp: {{temperature}}°C, Rainfall: {{rainfall}}mm
-{{/each}}
+Use simple language. For example, instead of "Insolation values peaked in August", say "The plants appear to be most active and healthiest in August".
 
 Vegetation Data (Insolation as a proxy for health):
 {{#each vegetationData}}

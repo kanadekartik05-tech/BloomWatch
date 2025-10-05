@@ -29,7 +29,7 @@ type InsightsViewProps = {
 
 const chartConfig: ChartConfig = {
   value: {
-    label: 'Insolation', // Updated Label
+    label: 'Vegetation Proxy (Insolation)',
     color: 'hsl(var(--primary))',
   },
 };
