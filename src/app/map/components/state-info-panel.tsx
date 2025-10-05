@@ -5,18 +5,9 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import type { State, Country, City } from '@/lib/geodata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BarChart3, Thermometer, CloudRain, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon, MessageSquareText } from 'lucide-react';
+import { ArrowLeft, Loader, AlertTriangle, Wand2, Flower, Sprout, PersonStanding, X, Maximize, CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getAnalysisForCity, getBloomPredictionForCity, getChartSummary } from '../actions';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartConfig,
-} from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from 'recharts';
-import type { ClimateDataOutput } from '@/ai/flows/types';
-import type { NdviDataOutput } from '@/ai/flows/get-ndvi-data';
+import { getBloomPredictionForCity } from '../actions';
 import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -31,35 +22,9 @@ type StateInfoPanelProps = {
   onClose: () => void;
 };
 
-const climateChartConfig: ChartConfig = {
-  rainfall: {
-    label: 'Rainfall (mm)',
-    color: 'hsl(var(--chart-1))',
-  },
-  temperature: {
-    label: 'Temp. (°C)',
-    color: 'hsl(var(--chart-2))',
-  },
-};
-
-const vegetationChartConfig: ChartConfig = {
-  value: {
-    label: 'Insolation',
-    color: 'hsl(var(--primary))',
-  },
-};
-
-
 export function StateInfoPanel({ state, country, onBackToCountries, onClose }: StateInfoPanelProps) {
     const { user } = useUser();
-    const [isAnalysisPending, startAnalysisTransition] = useTransition();
     const [analysisError, setAnalysisError] = useState<string | null>(null);
-    const [climateData, setClimateData] = useState<ClimateDataOutput | null>(null);
-    const [vegetationData, setVegetationData] = useState<NdviDataOutput | null>(null);
-
-    const [isSummaryPending, startSummaryTransition] = useTransition();
-    const [summary, setSummary] = useState<string | null>(null);
-    const [summaryError, setSummaryError] = useState<string | null>(null);
 
     const [isAIPending, startAITransition] = useTransition();
     const [prediction, setPrediction] = useState<PredictNextBloomDateOutput | null>(null);
@@ -71,64 +36,36 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
 
     const representativeCity = useMemo(() => {
         if (!state || !state.cities || state.cities.length === 0) return null;
-        // A simple heuristic: pick the first city. A better one might be to find the capital.
         return state.cities[0];
     }, [state]);
 
-    const fetchAnalysisData = () => {
-        setAnalysisError(null);
-        setClimateData(null);
-        setVegetationData(null);
-        setPrediction(null);
-        setPredictionError(null);
-        setSummary(null);
-        setSummaryError(null);
-        if (!representativeCity) {
-            if (state) {
-                 setAnalysisError("No city data available to analyze for this state.");
-            }
-            return;
-        }
-
-        startAnalysisTransition(async () => {
-            const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
-            const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
-            const result = await getAnalysisForCity(representativeCity, state, country, user?.uid, start, end);
-            if (result.success) {
-                setClimateData(result.climateData);
-                setVegetationData(result.vegetationData);
-            } else {
-                setAnalysisError(result.error);
-            }
-        });
-    }
-
     useEffect(() => {
         setStartDate(undefined);
-        setEndDate(undefined); 
+        setEndDate(undefined);
+        setPrediction(null);
+        setPredictionError(null);
+        setAnalysisError(null);
 
-        if (state) { // Ensure state is not null before proceeding
-            if (representativeCity) {
-                fetchAnalysisData();
-            } else {
-                setAnalysisError("No city data available to analyze for this state.");
-                setClimateData(null);
-                setVegetationData(null);
-                setPrediction(null);
-                setSummary(null);
-            }
+        if (state && !representativeCity) {
+            setAnalysisError("No city data available to analyze for this state.");
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [representativeCity, state]);
     
     const handlePredict = () => {
-        if (!representativeCity) return;
+        if (!representativeCity) {
+            setPredictionError("Cannot perform analysis without a representative city.");
+            return;
+        };
         
         startAITransition(async () => {
           setPrediction(null);
           setPredictionError(null);
+
+          const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
+          const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
           
-          const result = await getBloomPredictionForCity(representativeCity, state, country, user?.uid);
+          const result = await getBloomPredictionForCity(representativeCity, state, country, user?.uid, start, end);
     
           if (result.success && result.data) {
             setPrediction(result.data);
@@ -137,26 +74,6 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
           }
         });
       };
-
-    const handleGenerateSummary = () => {
-        if (!state || !climateData || !vegetationData || !representativeCity) return;
-
-        startSummaryTransition(async () => {
-            setSummary(null);
-            setSummaryError(null);
-            const result = await getChartSummary({
-                locationName: state.name,
-                climateData,
-                vegetationData,
-            }, representativeCity, state, country, user?.uid);
-            if (result.success) {
-                setSummary(result.data.summary);
-            } else {
-                setSummaryError(result.error);
-            }
-        });
-    }
-
 
   return (
     <Card className={cn(
@@ -251,111 +168,25 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                         </PopoverContent>
                     </Popover>
                 </div>
-                <Button onClick={fetchAnalysisData} disabled={isAnalysisPending} className="w-full">
-                    {isAnalysisPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Submit
-                </Button>
             </div>
             
-            {isAnalysisPending && (
-                <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground">
-                    <Loader className="h-5 w-5 animate-spin" />
-                    <span>Fetching real-time analysis...</span>
-                </div>
-            )}
-
-            {analysisError && !isAnalysisPending && (
+            {analysisError && (
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Analysis Failed</AlertTitle>
+                    <AlertTitle>Analysis Not Available</AlertTitle>
                     <AlertDescription>{analysisError}</AlertDescription>
                 </Alert>
             )}
-            
-            {!isAnalysisPending && !analysisError && climateData && vegetationData && (
+
+            {!analysisError && (
                 <>
-                    <div className="space-y-2">
-                        <h3 className="flex items-center gap-2 text-lg font-semibold">
-                            <BarChart3 className="h-5 w-5 text-primary" />
-                            Monthly Vegetation Trend
-                        </h3>
-                        {vegetationData ? (
-                            <ChartContainer config={vegetationChartConfig} className="h-48 w-full">
-                                <BarChart data={vegetationData} accessibilityLayer>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
-                                    <YAxis tickLine={false} axisLine={false} tickMargin={10} fontSize={12}/>
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
-                                    />
-                                    <Bar dataKey="value" fill="var(--color-value)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No vegetation data available.</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
-                        <h3 className="flex items-center gap-2 text-lg font-semibold">
-                            <Thermometer className="h-5 w-5 text-destructive" />
-                            <CloudRain className="h-5 w-5 text-blue-500" />
-                            Monthly Climate Data
-                        </h3>
-                         {climateData ? (
-                            <ChartContainer config={climateChartConfig} className="h-48 w-full">
-                                <ComposedChart data={climateData} accessibilityLayer>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} fontSize={12}/>
-                                    <YAxis yAxisId="left" stroke="var(--color-rainfall)" domain={['auto', 'auto']} tickLine={false} axisLine={false} fontSize={12} />
-                                    <YAxis yAxisId="right" orientation="right" stroke="var(--color-temperature)" domain={['auto', 'auto']} tickLine={false} axisLine={false} fontSize={12}/>
-                                    <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
-                                    />
-                                    <Bar dataKey="rainfall" fill="var(--color-rainfall)" radius={4} yAxisId="left"/>
-                                    <Line type="monotone" dataKey="temperature" stroke="var(--color-temperature)" strokeWidth={2} yAxisId="right" />
-                                </ComposedChart>
-                            </ChartContainer>
-                         ) : (
-                            <p className="text-sm text-muted-foreground">No climate data available.</p>
-                         )}
-                    </div>
-                    
-                    <div className="space-y-4">
-                        <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isAnalysisPending || !climateData || !vegetationData}>
-                            {isSummaryPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                            Generate Short Reply
-                        </Button>
-                        {isSummaryPending && (
-                            <div className="flex items-center text-sm text-muted-foreground">
-                                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                Generating summary...
-                            </div>
-                        )}
-                        {summaryError && !isSummaryPending && (
-                            <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Summary Failed</AlertTitle>
-                                <AlertDescription>{summaryError}</AlertDescription>
-                            </Alert>
-                        )}
-                        {summary && !isSummaryPending && (
-                            <Alert>
-                                <AlertTitle>Analysis Summary</AlertTitle>
-                                <AlertDescription>{summary}</AlertDescription>
-                            </Alert>
-                        )}
-                    </div>
-
                     <Card>
                         <CardHeader>
                             <CardTitle>AI Botanical Analysis</CardTitle>
-                            <CardDescription>Get AI-powered suggestions for suitable plant species.</CardDescription>
+                            <CardDescription>Get AI-powered suggestions for suitable flower species.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button onClick={handlePredict} disabled={isAIPending || isAnalysisPending || !vegetationData || !representativeCity}>
+                            <Button onClick={handlePredict} disabled={isAIPending || !representativeCity}>
                                 {isAIPending ? (
                                     <Loader className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
@@ -382,20 +213,20 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                     {prediction && !isAIPending && (
                         <Card className="shadow-lg">
                             <CardHeader>
-                                <CardTitle className="text-xl font-bold text-primary">
-                                    AI Analysis
+                                <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
+                                   <Flower className="h-6 w-6"/> AI Analysis
                                 </CardTitle>
                                 <CardDescription>{prediction.predictionJustification}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
-                                    <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Potential Species</h3>
+                                    <h3 className="font-semibold flex items-center gap-2"><Sprout className="text-accent"/>Suitable Flower Species</h3>
                                     <p className="text-muted-foreground text-sm">{prediction.potentialSpecies}</p>
 
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold flex items-center gap-2"><Flower className="text-accent"/>Ecological Significance</h3>
+                                    <p className="text-muted-foreground text-sm">{prediction.ecologicalSignificance}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <h3 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent"/>Human Impact</h3>

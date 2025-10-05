@@ -125,10 +125,12 @@ export async function getBloomPredictionForCity(
     city: City,
     state: State | null,
     country: Country | null,
-    userId?: string
+    userId?: string,
+    startDate?: string,
+    endDate?: string
 ): Promise<PredictionResult> {
     try {
-        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon };
+        const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon, startDate, endDate };
 
         const [ndviResult, climateResult] = await Promise.all([
             getNdviData(climateInput),
