@@ -1,170 +1,200 @@
-/**
- * @fileoverview Firestore Security Rules for BloomWatch application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for private user data
- * and a shared-access model for regions, NDVI entries, and bloom events.
- * User's history is private.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles; only accessible by the user.
- * - /users/{userId}/history/{historyId}: Stores user activity history; only accessible by the user.
- * - /regions/{regionId}: Stores region data; accessible to users listed in the `userIds` array.
- * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: Stores NDVI entries for each region; access controlled by region membership.
- * - /regions/{regionId}/bloom_events/{bloomEventId}: Stores bloom events; access controlled by region membership.
- *
- * Key Security Decisions:
- * - Users can only access their own profile data and history.
- * - Regions are shared resources; access is granted to users listed in the `userIds` array.
- * - NDVI entries and bloom events inherit access permissions from their parent region.
- * - No public listing of user profiles or history is allowed.
- *
- * Denormalization for Authorization:
- * - The `userIds` array on the `/regions/{regionId}` document is used to determine which users have access to the region and its subcollections, avoiding costly `get()` calls.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles. Users can only read and write their own profile data.
+     * @description Rules for the /users collection. Only the user themselves can read or write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their profile.
-     *          request.auth.uid == 'user123' and request.resource.data.id == 'user123'
-     * @allow (get) User with ID 'user123' can read their profile.
-     *          request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' can update their profile.
-     *          request.auth.uid == 'user123' and resource.data.id == 'user123'
-     * @allow (delete) User with ID 'user123' can delete their profile.
-     *          request.auth.uid == 'user123' and resource.data.id == 'user123'
-     * @deny (create) User with ID 'user456' cannot create a profile for user 'user123'.
-     *          request.auth.uid == 'user456' and request.resource.data.id == 'user123'
-     * @deny (get) User with ID 'user456' cannot read user 'user123's profile.
-     *          request.auth.uid == 'user456'
-     * @principle Enforces document ownership for writes; restricts access to a user's own data tree.
+     * @allow (create) User with ID 'user123' creates their profile with matching userId.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "user123", "email": "test@example.com", "displayName": "Test User" } } }
+     * @allow (get) User with ID 'user123' reads their profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (update) User with ID 'user123' updates their profile.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "user123", "email": "newemail@example.com", "displayName": "New Name" } } }
+     * @allow (delete) User with ID 'user123' deletes their profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @deny (create) User with ID 'user456' attempts to create profile for 'user123'.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "user123", "email": "test@example.com", "displayName": "Test User" } } }
+     * @deny (get) User with ID 'user456' attempts to read profile for 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @deny (update) User with ID 'user456' attempts to update profile for 'user123'.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "user123", "email": "newemail@example.com", "displayName": "New Name" } } }
+     * @deny (delete) User with ID 'user456' attempts to delete profile for 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @principle Enforces document ownership for writes, restricts access to a user's own data.
      */
     match /users/{userId} {
+      // Helper function to check if the authenticated user is the owner of the document.
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
+      }
+      // Helper function to check if the authenticated user is the owner of an existing document.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
       }
 
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Disallow listing users
+
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == request.resource.data.id && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to user activity history. Only the user can access their own history.
+     * @description Rules for the /regions collection. Allows public read access, but write access is restricted to users listed in the `userIds` array.
+     * @path /regions/{regionId}
+     * @allow (get) Any user can read region data.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (list) Any user can list regions.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (create) User with ID 'user123' can create a region if they are in the `userIds` array.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "region456", "name": "Test Region", "lat": 12.34, "lon": 56.78, "userIds": ["user123"] } } }
+     * @allow (update) User with ID 'user123' can update a region if they are in the `userIds` array.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "region456", "name": "Updated Region", "lat": 12.34, "lon": 56.78, "userIds": ["user123"] } } }
+     * @allow (delete) User with ID 'user123' can delete a region if they are in the `userIds` array.
+     *   Request: { "auth": { "uid": "user123" },  }
+     * @deny (create) User with ID 'user456' attempts to create a region without being in the `userIds` array.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "region456", "name": "Test Region", "lat": 12.34, "lon": 56.78, "userIds": ["user123"] } } }
+     * @deny (update) User with ID 'user456' attempts to update a region without being in the `userIds` array.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "region456", "name": "Updated Region", "lat": 12.34, "lon": 56.78, "userIds": ["user123"] } } }
+     * @deny (delete) User with ID 'user456' attempts to delete a region without being in the `userIds` array.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @principle Allows public read access, restricts write access to authorized users based on membership in `userIds` array.
+     */
+    match /regions/{regionId} {
+      // Helper function to check if the authenticated user is in the `userIds` array.
+      function isRegionEditor() {
+        return request.auth != null && request.resource.data.userIds is list && request.resource.data.userIds.hasAny([request.auth.uid]);
+      }
+      // Helper function to check if the authenticated user is in the `userIds` array of an existing document.
+      function isExistingRegionEditor() {
+        return request.auth != null && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds is list && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+      }
+
+      allow get, list: if true;
+
+      allow create: if request.auth != null && request.resource.data.userIds is list && request.resource.data.userIds.hasAny([request.auth.uid]);
+      allow update: if request.auth != null && isExistingRegionEditor();
+      allow delete: if request.auth != null && isExistingRegionEditor();
+
+      /**
+       * @description Rules for the /regions/{regionId}/ndvi_entries collection. Allows public read access, but write access is restricted to users listed in the parent region's `userIds` array.
+       * @path /regions/{regionId}/ndvi_entries/{ndviEntryId}
+       * @allow (get) Any user can read NDVI entries.
+       *   Request: { "auth": { "uid": "user123" } }
+       * @allow (list) Any user can list NDVI entries.
+       *   Request: { "auth": { "uid": "user123" } }
+       * @allow (create) User with ID 'user123' can create an NDVI entry if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "ndvi123", "regionId": "region456", "month": "Jan", "value": 0.5 } }, "parentRegion": { "userIds": ["user123"] } }
+       * @allow (update) User with ID 'user123' can update an NDVI entry if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "ndvi123", "regionId": "region456", "month": "Feb", "value": 0.6 } }, "parentRegion": { "userIds": ["user123"] } }
+       * @allow (delete) User with ID 'user123' can delete an NDVI entry if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (create) User with ID 'user456' attempts to create an NDVI entry without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "ndvi123", "regionId": "region456", "month": "Jan", "value": 0.5 } }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (update) User with ID 'user456' attempts to update an NDVI entry without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "ndvi123", "regionId": "region456", "month": "Feb", "value": 0.6 } }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (delete) User with ID 'user456' attempts to delete an NDVI entry without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "parentRegion": { "userIds": ["user123"] } }
+       * @principle Allows public read access, restricts write access based on membership in the parent region's `userIds` array.
+       */
+      match /ndvi_entries/{ndviEntryId} {
+        // Helper function to check if the authenticated user is a region editor, based on the parent region document.
+        function isRegionEditor() {
+          return request.auth != null && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds is list && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+        }
+        // Helper function to check if the authenticated user is a region editor, based on the parent region document of an existing document.
+        function isExistingRegionEditor() {
+          return request.auth != null && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds is list && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+        }
+
+        allow get, list: if true;
+
+        allow create: if isRegionEditor();
+        allow update: if isRegionEditor();
+        allow delete: if isRegionEditor();
+      }
+
+      /**
+       * @description Rules for the /regions/{regionId}/bloom_events collection. Allows public read access, but write access is restricted to users listed in the parent region's `userIds` array.
+       * @path /regions/{regionId}/bloom_events/{bloomEventId}
+       * @allow (get) Any user can read bloom events.
+       *   Request: { "auth": { "uid": "user123" } }
+       * @allow (list) Any user can list bloom events.
+       *   Request: { "auth": { "uid": "user123" } }
+       * @allow (create) User with ID 'user123' can create a bloom event if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "bloom123", "regionId": "region456", "date": "2024-01-01", "type": "historical" } }, "parentRegion": { "userIds": ["user123"] } }
+       * @allow (update) User with ID 'user123' can update a bloom event if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "bloom123", "regionId": "region456", "date": "2024-02-01", "type": "predicted" } }, "parentRegion": { "userIds": ["user123"] } }
+       * @allow (delete) User with ID 'user123' can delete a bloom event if they are in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user123" }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (create) User with ID 'user456' attempts to create a bloom event without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "bloom123", "regionId": "region456", "date": "2024-01-01", "type": "historical" } }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (update) User with ID 'user456' attempts to update a bloom event without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "bloom123", "regionId": "region456", "date": "2024-02-01", "type": "predicted" } }, "parentRegion": { "userIds": ["user123"] } }
+       * @deny (delete) User with ID 'user456' attempts to delete a bloom event without being in the parent region's `userIds` array.
+       *   Request: { "auth": { "uid": "user456" }, "parentRegion": { "userIds": ["user123"] } }
+       * @principle Allows public read access, restricts write access based on membership in the parent region's `userIds` array.
+       */
+      match /bloom_events/{bloomEventId} {
+        // Helper function to check if the authenticated user is a region editor, based on the parent region document.
+        function isRegionEditor() {
+          return request.auth != null && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds is list && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+        }
+        // Helper function to check if the authenticated user is a region editor, based on the parent region document of an existing document.
+        function isExistingRegionEditor() {
+          return request.auth != null && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds is list && get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+        }
+
+        allow get, list: if true;
+
+        allow create: if isRegionEditor();
+        allow update: if isRegionEditor();
+        allow delete: if isRegionEditor();
+      }
+    }
+
+    /**
+     * @description Rules for the /users/{userId}/history collection. Only the user themselves can read or write their own history.
      * @path /users/{userId}/history/{historyId}
-     * @allow (create) User with ID 'user123' can create a history event.
-     *          request.auth.uid == 'user123' and request.resource.data.userId == 'user123'
-     * @allow (get) User with ID 'user123' can read a history event.
-     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
-     * @allow (list) User with ID 'user123' can list their history events.
-     *          request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' can update a history event.
-     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
-     * @allow (delete) User with ID 'user123' can delete a history event.
-     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
-     * @deny (create) User with ID 'user456' cannot create a history event for user 'user123'.
-     *          request.auth.uid == 'user456' and request.resource.data.userId == 'user123'
-     * @deny (get) User with ID 'user456' cannot read user 'user123's history.
-     *          request.auth.uid == 'user456'
-     * @principle Enforces document ownership for writes; restricts access to a user's own data tree.
+     * @allow (create) User with ID 'user123' creates a history entry with matching userId.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "history123", "userId": "user123", "type": "PREDICTION", "regionName": "Test Region", "createdAt": "2024-01-01" } } }
+     * @allow (get) User with ID 'user123' reads their history entry.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (list) User with ID 'user123' list their history entries.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (update) User with ID 'user123' updates their history entry.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "history123", "userId": "user123", "type": "PREDICTION", "regionName": "Updated Region", "createdAt": "2024-01-01" } } }
+     * @allow (delete) User with ID 'user123' deletes their history entry.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @deny (create) User with ID 'user456' attempts to create history entry for 'user123'.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "history123", "userId": "user123", "type": "PREDICTION", "regionName": "Test Region", "createdAt": "2024-01-01" } } }
+     * @deny (get) User with ID 'user456' attempts to read history entry for 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @deny (list) User with ID 'user456' attempts to list history entries for 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @deny (update) User with ID 'user456' attempts to update history entry for 'user123'.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "history123", "userId": "user123", "type": "PREDICTION", "regionName": "Updated Region", "createdAt": "2024-01-01" } } }
+     * @deny (delete) User with ID 'user456' attempts to delete history entry for 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @principle Enforces document ownership for writes, restricts access to a user's own data.
      */
     match /users/{userId}/history/{historyId} {
+      // Helper function to check if the authenticated user is the owner of the document.
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+      // Helper function to check if the authenticated user is the owner of an existing document.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/history/$(historyId));
+      }
 
-      allow get: if isOwner(userId) && resource.data.userId == userId;
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource.data.userId == userId && resource != null;
-      allow delete: if isOwner(userId) && resource.data.userId == userId && resource != null;
-    }
+      allow get, list: if isOwner(userId);
 
-    /**
-     * @description Controls access to region data. Users listed in the `userIds` array can access the region.
-     * @path /regions/{regionId}
-     * @allow (create) Any signed-in user can create a region.
-     *          request.auth != null
-     * @allow (get) Any user can read region data.
-     *          true
-     * @allow (list) Any user can list regions.
-     *          true
-     * @allow (update) Only users with write access, through the `userIds` field, can update a region.
-     *          request.auth.uid in resource.data.userIds && resource != null
-     * @allow (delete) Only users with write access, through the `userIds` field, can delete a region.
-     *          request.auth.uid in resource.data.userIds && resource != null
-     * @deny (create) User with ID 'user123' cannot create a region if not authenticated.
-     *          request.auth == null
-     * @deny (update) User with ID 'user123' cannot update region 'region123' if they are not in the 'userIds' array.
-     *          request.auth.uid == 'user123' and !('user123' in resource.data.userIds)
-     * @principle Enforces shared access through the `userIds` array; allows public read access.
-     */
-    match /regions/{regionId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth.uid in resource.data.userIds && resource != null;
-      allow delete: if request.auth.uid in resource.data.userIds && resource != null;
-    }
-
-    /**
-     * @description Controls access to NDVI entries. Access is inherited from the parent region.
-     * @path /regions/{regionId}/ndvi_entries/{ndviEntryId}
-     * @allow (create) Only users with write access, through the `userIds` field of the parent region, can create an NDVI entry.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (get) Only users with read access, through the `userIds` field of the parent region, can read an NDVI entry.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (list) Only users with read access, through the `userIds` field of the parent region, can list NDVI entries.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (update) Only users with write access, through the `userIds` field of the parent region, can update an NDVI entry.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
-     * @allow (delete) Only users with write access, through the `userIds` field of the parent region, can delete an NDVI entry.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
-     * @deny (create) User with ID 'user123' cannot create an NDVI entry if they are not in the 'userIds' array of the parent region.
-     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
-     * @deny (get) User with ID 'user123' cannot read an NDVI entry if they are not in the 'userIds' array of the parent region.
-     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
-     * @principle Enforces shared access through the `userIds` array on the parent region.
-     */
-    match /regions/{regionId}/ndvi_entries/{ndviEntryId} {
-      allow get: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow update: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
-      allow delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
-    }
-
-    /**
-     * @description Controls access to bloom events. Access is inherited from the parent region.
-     * @path /regions/{regionId}/bloom_events/{bloomEventId}
-     * @allow (create) Only users with write access, through the `userIds` field of the parent region, can create a bloom event.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (get) Only users with read access, through the `userIds` field of the parent region, can read a bloom event.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (list) Only users with read access, through the `userIds` field of the parent region, can list bloom events.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
-     * @allow (update) Only users with write access, through the `userIds` field of the parent region, can update a bloom event.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
-     * @allow (delete) Only users with write access, through the `userIds` field of the parent region, can delete a bloom event.
-     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
-     * @deny (create) User with ID 'user123' cannot create a bloom event if they are not in the 'userIds' array of the parent region.
-     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
-     * @deny (get) User with ID 'user123' cannot read a bloom event if they are not in the 'userIds' array of the parent region.
-     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
-     * @principle Enforces shared access through the `userIds` array on the parent region.
-     */
-    match /regions/{regionId}/bloom_events/{bloomEventId} {
-      allow get: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
-      allow update: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
-      allow delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
