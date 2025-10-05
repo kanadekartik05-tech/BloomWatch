@@ -170,15 +170,6 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                 </div>
             )}
             
-            {displayRegions.length === 0 && !isPending && (
-                <div className="flex h-64 w-full items-center justify-center rounded-lg border border-dashed">
-                    <div className="text-center text-muted-foreground">
-                        <h3 className="text-lg font-semibold">Your Dashboard is Empty</h3>
-                        <p>Use the search box above to add cities and monitor their bloom predictions.</p>
-                    </div>
-                </div>
-            )}
-
             {error && (
                 <div className="flex justify-center">
                     <Card className="max-w-xl bg-destructive/10">
@@ -317,5 +308,3 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
         </div>
     );
 }
-
-    

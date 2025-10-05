@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -130,6 +131,50 @@
         "date",
         "type"
       ]
+    },
+    "HistoryEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HistoryEvent",
+      "type": "object",
+      "description": "Represents a single event in a user's activity history.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the history event."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who performed the action."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of event that occurred.",
+          "enum": [
+            "PREDICTION"
+          ]
+        },
+        "regionName": {
+          "type": "string",
+          "description": "The name of the region associated with the event."
+        },
+        "predictedDate": {
+          "type": "string",
+          "description": "The predicted bloom date, if applicable.",
+          "format": "date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the event was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "regionName",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -211,8 +256,28 @@
             }
           ]
         }
+      },
+      {
+        "path": "/users/{userId}/history/{historyId}",
+        "definition": {
+          "entityName": "HistoryEvent",
+          "schema": {
+            "$ref": "#/backend/entities/HistoryEvent"
+          },
+          "description": "Stores a log of user activities, such as generating predictions. Data is private to each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "historyId",
+              "description": "The unique identifier for the history event."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters).  Authorization Independence is achieved through denormalization. Specifically, the `regionIds` array in the `User` document, and `userIds` array in the `Region` document are used to manage the N:N relationship between Users and Regions.  This allows rules to validate access without needing `get()` calls to other documents, thus enabling atomic operations. Structural Segregation is applied by separating different data types into distinct collections, simplifying security rules. Access Modeling uses path-based ownership for user data and membership maps where appropriate.\n\n**Explanation of Collections:**\n\n*   `/users/{userId}`: Stores user profiles.  The `userId` parameter provides clear ownership, and the profile data is private to the user.\n*   `/regions/{regionId}`: Stores region data.  Includes `userIds` array to enable collaborative access and management of regions.  Allows QAPs by enabling listing of regions without needing to filter based on complex rules.\n*   `/regions/{regionId}/ndvi_entries/{ndviEntryId}`: Stores NDVI entries for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n*   `/regions/{regionId}/bloom_events/{bloomEventId}`: Stores bloom events for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n\nThis design facilitates secure `list` operations by segregating data and using path-based authorization where possible.  The data structure supports the integrity of ownership, timestamps, and denormalized data."
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable. A new 'history' subcollection has been added under each user's document to store a log of their activities. This keeps user data private and logically grouped.  Authorization Independence is achieved through denormalization. Specifically, the `regionIds` array in the `User` document, and `userIds` array in the `Region` document are used to manage the N:N relationship between Users and Regions.  This allows rules to validate access without needing `get()` calls to other documents, thus enabling atomic operations. Structural Segregation is applied by separating different data types into distinct collections, simplifying security rules. Access Modeling uses path-based ownership for user data and membership maps where appropriate.\n\n**Explanation of Collections:**\n\n*   `/users/{userId}`: Stores user profiles.  The `userId` parameter provides clear ownership, and the profile data is private to the user.\n*   `/users/{userId}/history/{historyId}`: Stores a log of each user's activities. This data is private and only accessible by the authenticated user.\n*   `/regions/{regionId}`: Stores region data.  Includes `userIds` array to enable collaborative access and management of regions.  Allows QAPs by enabling listing of regions without needing to filter based on complex rules.\n*   `/regions/{regionId}/ndvi_entries/{ndviEntryId}`: Stores NDVI entries for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n*   `/regions/{regionId}/bloom_events/{bloomEventId}`: Stores bloom events for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n\nThis design facilitates secure `list` operations by segregating data and using path-based authorization where possible.  The data structure supports the integrity of ownership, timestamps, and denormalized data."
   }
 }

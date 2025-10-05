@@ -1,4 +1,6 @@
+
 import { DashboardView } from './components/dashboard-view';
+import { History } from './components/history';
 import { regions } from '@/lib/data';
 
 export const metadata = {
@@ -16,6 +18,8 @@ export default function DashboardPage() {
         </p>
       </div>
       <DashboardView initialRegions={[]} />
+
+      <History />
     </div>
   );
 }
