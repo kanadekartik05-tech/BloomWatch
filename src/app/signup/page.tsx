@@ -1,6 +1,5 @@
 import { SignUpForm } from './components/signup-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
 
 export default function SignUpPage() {
   return (
@@ -14,12 +13,6 @@ export default function SignUpPage() {
         </CardHeader>
         <CardContent>
           <SignUpForm />
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-primary hover:underline">
-              Sign In
-            </Link>
-          </p>
         </CardContent>
       </Card>
     </div>

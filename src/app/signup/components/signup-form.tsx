@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Loader } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { createUserProfile } from '../actions';
+import Link from 'next/link';
 
 
 const SignUpFormSchema = z.object({
@@ -34,6 +35,8 @@ type SignUpFormValues = z.infer<typeof SignUpFormSchema>;
 export function SignUpForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   
@@ -62,12 +65,15 @@ export function SignUpForm() {
         await updateProfile(userCredential.user, { displayName: data.name });
 
         // Call server action to create Firestore document.
-        // We now pass a plain object.
-        await createUserProfile({
+        const profileResult = await createUserProfile({
             uid: userCredential.user.uid,
             email: data.email,
             displayName: data.name,
         });
+
+        if (!profileResult.success) {
+            throw new Error(profileResult.message);
+        }
 
     } catch(error: any) {
         let message = 'An unexpected error occurred.';
@@ -83,6 +89,7 @@ export function SignUpForm() {
                 break;
             default:
                 console.error("Signup error:", error);
+                message = error.message || message;
                 break;
         }
          toast({
@@ -101,60 +108,68 @@ export function SignUpForm() {
             title: "Sign Up Successful!",
             description: "Welcome to BloomWatch.",
         });
-        router.push('/');
+        router.push(redirectUrl || '/');
     }
-  }, [user, isUserLoading, router, toast]);
+  }, [user, isUserLoading, router, toast, redirectUrl]);
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
-      >
-        <FormField
+    <>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
+          <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                      <Input placeholder="Your Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                  </FormItem>
+              )}
+          />
+          <FormField
             control={form.control}
-            name="name"
+            name="email"
             render={({ field }) => (
-                <FormItem>
-                <FormLabel>Name</FormLabel>
+              <FormItem>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
-                    <Input placeholder="Your Name" {...field} />
+                  <Input placeholder="your.email@example.com" {...field} type="email" />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="your.email@example.com" {...field} type="email" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input placeholder="••••••••" {...field} type="password" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
-            {form.formState.isSubmitting || isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-          Sign Up
-        </Button>
-      </form>
-    </Form>
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input placeholder="••••••••" {...field} type="password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
+              {form.formState.isSubmitting || isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+            Sign Up
+          </Button>
+        </form>
+      </Form>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        Already have an account?{' '}
+        <Link href={redirectUrl ? `/login?redirect=${redirectUrl}` : '/login'} className="font-semibold text-primary hover:underline">
+          Sign In
+        </Link>
+      </p>
+    </>
   );
 }

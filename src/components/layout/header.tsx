@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Leaf, Menu, LogIn, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,15 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'Home' },
-  { href: '/map', label: 'Map' },
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/map', label: 'Map', protected: true },
+  { href: '/dashboard', label: 'Dashboard', protected: true },
   { href: '/insights', label: 'Analysis' },
   { href: '/climate', label: 'Climate' },
   { href: '/about', label: 'About' },
   { href: '/info', label: 'Info' },
-  { href: '/references', label: 'References' },
 ];
 
 function AuthButton() {
@@ -28,7 +26,9 @@ function AuthButton() {
     const router = useRouter();
 
     const handleLogout = async () => {
-        await signOut(auth);
+        if (auth) {
+            await signOut(auth);
+        }
         router.push('/');
     }
 
@@ -58,20 +58,34 @@ function AuthButton() {
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isUserLoading } = useUser();
 
-  const NavLink = ({ href, label }: { href: string; label: string }) => (
-    <Link
-      href={href}
-      className={cn(
-        'text-sm font-medium transition-colors hover:text-primary',
-        pathname === href ? 'text-primary' : 'text-muted-foreground'
-      )}
-      onClick={() => setIsMobileMenuOpen(false)}
-    >
-      {label}
-    </Link>
-  );
+  const NavLink = ({ href, label, isProtected }: { href: string; label: string, isProtected?: boolean }) => {
+    
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (isProtected && !user && !isUserLoading) {
+            e.preventDefault();
+            router.push(`/login?redirect=${href}`);
+        } else {
+            setIsMobileMenuOpen(false);
+        }
+    }
+    
+    return (
+        <Link
+        href={href}
+        className={cn(
+            'text-sm font-medium transition-colors hover:text-primary',
+            pathname === href ? 'text-primary' : 'text-muted-foreground'
+        )}
+        onClick={handleClick}
+        >
+        {label}
+        </Link>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -82,7 +96,7 @@ export default function Header() {
         </Link>
         <nav className="hidden items-center space-x-6 md:flex">
           {navItems.map((item) => (
-            <NavLink key={item.href} {...item} />
+            <NavLink key={item.href} href={item.href} label={item.label} isProtected={item.protected} />
           ))}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-4">
@@ -108,7 +122,7 @@ export default function Header() {
                     </Link>
                     <nav className="flex flex-col space-y-4">
                     {navItems.map((item) => (
-                        <NavLink key={item.href} {...item} />
+                        <NavLink key={item.href} href={item.href} label={item.label} isProtected={item.protected} />
                     ))}
                     </nav>
                     <div className="mt-6 border-t pt-6">

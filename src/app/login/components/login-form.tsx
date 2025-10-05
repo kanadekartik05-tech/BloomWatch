@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,9 +17,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn } from 'lucide-react';
+import { LogIn, Loader } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import Link from 'next/link';
 
 const LoginFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -29,6 +30,9 @@ const LoginFormSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
+
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
 
@@ -81,48 +85,56 @@ export function LoginForm() {
             title: "Logged In!",
             description: "You have been successfully logged in.",
         });
-        router.push('/');
+        router.push(redirectUrl || '/');
     }
-  }, [user, isUserLoading, router, toast]);
+  }, [user, isUserLoading, router, toast, redirectUrl]);
 
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
-      >
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="your.email@example.com" {...field} type="email" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input placeholder="••••••••" {...field} type="password" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
-          {isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-          Sign In
-        </Button>
-      </form>
-    </Form>
+    <>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="your.email@example.com" {...field} type="email" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input placeholder="••••••••" {...field} type="password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
+            {isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+            Sign In
+          </Button>
+        </form>
+      </Form>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        Don't have an account?{' '}
+        <Link href={redirectUrl ? `/signup?redirect=${redirectUrl}` : '/signup'} className="font-semibold text-primary hover:underline">
+          Sign Up
+        </Link>
+      </p>
+    </>
   );
 }
