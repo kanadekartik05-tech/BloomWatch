@@ -71,7 +71,7 @@ export function SignUpForm() {
     <Form {...form}>
       <form
         action={formAction}
-        onSubmit={form.handleSubmit(() => form.trigger().then(valid => valid && formAction(new FormData(form.control._formValues.current))))}
+        onSubmit={form.handleSubmit(data => formAction(new FormData(form.control._formValues.current)))}
         className="space-y-6"
       >
         <FormField
