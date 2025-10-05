@@ -1,117 +1,170 @@
 /**
- * @fileOverview Firestore Security Rules for BloomWatch application.
+ * @fileoverview Firestore Security Rules for BloomWatch application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles
- * and a shared access model for regions, NDVI entries, and bloom events.
- * The rules prioritize authorization and relational integrity, while allowing flexible data shapes for rapid iteration.
+ * This ruleset enforces a strict user-ownership model for private user data
+ * and a shared-access model for regions, NDVI entries, and bloom events.
+ * User's history is private.
  *
  * Data Structure:
- * - /users/{userId}: User profile data, private to the user.
- * - /regions/{regionId}: Geographical region data, shared among authorized users.
- * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: NDVI data for a region.
- * - /regions/{regionId}/bloom_events/{bloomEventId}: Bloom event data for a region.
+ * - /users/{userId}: Stores user profiles; only accessible by the user.
+ * - /users/{userId}/history/{historyId}: Stores user activity history; only accessible by the user.
+ * - /regions/{regionId}: Stores region data; accessible to users listed in the `userIds` array.
+ * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: Stores NDVI entries for each region; access controlled by region membership.
+ * - /regions/{regionId}/bloom_events/{bloomEventId}: Stores bloom events; access controlled by region membership.
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data.
- * - Access to region data is controlled by a `userIds` array within the region document.
- * - Data validation is limited to authorization-critical fields to ensure relational integrity.
- * - `list` operations are generally allowed for owners of user documents and members of regions.
+ * - Users can only access their own profile data and history.
+ * - Regions are shared resources; access is granted to users listed in the `userIds` array.
+ * - NDVI entries and bloom events inherit access permissions from their parent region.
+ * - No public listing of user profiles or history is allowed.
  *
  * Denormalization for Authorization:
- * - The `User` entity contains a `regionIds` array, and the `Region` entity contains a `userIds` array. This denormalization enables efficient authorization checks without requiring additional `get()` calls.
+ * - The `userIds` array on the `/regions/{regionId}` document is used to determine which users have access to the region and its subcollections, avoiding costly `get()` calls.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants access to user profile data based on ownership.
+     * @description Controls access to user profiles. Users can only read and write their own profile data.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user_abc' can create their profile if authenticated as 'user_abc'.
-     * @allow (get, update, delete) Authenticated user 'user_abc' can read, update, and delete their own profile.
-     * @deny (create) User 'user_xyz' cannot create a profile for 'user_abc'.
-     * @deny (update, delete) User 'user_xyz' cannot update or delete 'user_abc's profile.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) User with ID 'user123' can create their profile.
+     *          request.auth.uid == 'user123' and request.resource.data.id == 'user123'
+     * @allow (get) User with ID 'user123' can read their profile.
+     *          request.auth.uid == 'user123'
+     * @allow (update) User with ID 'user123' can update their profile.
+     *          request.auth.uid == 'user123' and resource.data.id == 'user123'
+     * @allow (delete) User with ID 'user123' can delete their profile.
+     *          request.auth.uid == 'user123' and resource.data.id == 'user123'
+     * @deny (create) User with ID 'user456' cannot create a profile for user 'user123'.
+     *          request.auth.uid == 'user456' and request.resource.data.id == 'user123'
+     * @deny (get) User with ID 'user456' cannot read user 'user123's profile.
+     *          request.auth.uid == 'user456'
+     * @principle Enforces document ownership for writes; restricts access to a user's own data tree.
      */
     match /users/{userId} {
       function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return request.auth != null && request.auth.uid == userId;
       }
 
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && resource.data.id == request.resource.data.id && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Grants access to region data based on user membership in the 'userIds' array.
+     * @description Controls access to user activity history. Only the user can access their own history.
+     * @path /users/{userId}/history/{historyId}
+     * @allow (create) User with ID 'user123' can create a history event.
+     *          request.auth.uid == 'user123' and request.resource.data.userId == 'user123'
+     * @allow (get) User with ID 'user123' can read a history event.
+     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
+     * @allow (list) User with ID 'user123' can list their history events.
+     *          request.auth.uid == 'user123'
+     * @allow (update) User with ID 'user123' can update a history event.
+     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
+     * @allow (delete) User with ID 'user123' can delete a history event.
+     *          request.auth.uid == 'user123' and resource.data.userId == 'user123'
+     * @deny (create) User with ID 'user456' cannot create a history event for user 'user123'.
+     *          request.auth.uid == 'user456' and request.resource.data.userId == 'user123'
+     * @deny (get) User with ID 'user456' cannot read user 'user123's history.
+     *          request.auth.uid == 'user456'
+     * @principle Enforces document ownership for writes; restricts access to a user's own data tree.
+     */
+    match /users/{userId}/history/{historyId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId) && resource.data.userId == userId;
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isOwner(userId) && resource.data.userId == userId && resource != null;
+    }
+
+    /**
+     * @description Controls access to region data. Users listed in the `userIds` array can access the region.
      * @path /regions/{regionId}
-     * @allow (get, list) Any user can read or list region data.
-     * @allow (create) User 'user_abc' can create a region.
-     * @allow (update, delete) User 'user_abc' can update or delete a region if their ID is in the 'userIds' array.
-     * @deny (update, delete) User 'user_xyz' cannot update or delete a region if their ID is not in the 'userIds' array.
-     * @principle Enforces shared access based on membership in the 'userIds' array.
+     * @allow (create) Any signed-in user can create a region.
+     *          request.auth != null
+     * @allow (get) Any user can read region data.
+     *          true
+     * @allow (list) Any user can list regions.
+     *          true
+     * @allow (update) Only users with write access, through the `userIds` field, can update a region.
+     *          request.auth.uid in resource.data.userIds && resource != null
+     * @allow (delete) Only users with write access, through the `userIds` field, can delete a region.
+     *          request.auth.uid in resource.data.userIds && resource != null
+     * @deny (create) User with ID 'user123' cannot create a region if not authenticated.
+     *          request.auth == null
+     * @deny (update) User with ID 'user123' cannot update region 'region123' if they are not in the 'userIds' array.
+     *          request.auth.uid == 'user123' and !('user123' in resource.data.userIds)
+     * @principle Enforces shared access through the `userIds` array; allows public read access.
      */
     match /regions/{regionId} {
-      function isMember(region) {
-        return request.auth.uid in region.data.userIds;
-      }
-
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if resource != null && isMember(resource);
-      allow delete: if resource != null && isMember(resource);
+      allow get: if true;
+      allow list: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth.uid in resource.data.userIds && resource != null;
+      allow delete: if request.auth.uid in resource.data.userIds && resource != null;
     }
 
     /**
-     * @description Grants access to NDVI entries based on user membership in the parent region's 'userIds' array.
+     * @description Controls access to NDVI entries. Access is inherited from the parent region.
      * @path /regions/{regionId}/ndvi_entries/{ndviEntryId}
-     * @allow (get, list) Any user can read or list NDVI entries for a region.
-     * @allow (create) User 'user_abc' can create an NDVI entry if they are a member of the parent region.
-     * @allow (update, delete) User 'user_abc' can update or delete an NDVI entry if they are a member of the parent region.
-     * @deny (create, update, delete) User 'user_xyz' cannot create, update, or delete NDVI entries if they are not a member of the parent region.
-     * @principle Enforces shared access based on membership in the parent region's 'userIds' array.
+     * @allow (create) Only users with write access, through the `userIds` field of the parent region, can create an NDVI entry.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (get) Only users with read access, through the `userIds` field of the parent region, can read an NDVI entry.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (list) Only users with read access, through the `userIds` field of the parent region, can list NDVI entries.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (update) Only users with write access, through the `userIds` field of the parent region, can update an NDVI entry.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
+     * @allow (delete) Only users with write access, through the `userIds` field of the parent region, can delete an NDVI entry.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
+     * @deny (create) User with ID 'user123' cannot create an NDVI entry if they are not in the 'userIds' array of the parent region.
+     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
+     * @deny (get) User with ID 'user123' cannot read an NDVI entry if they are not in the 'userIds' array of the parent region.
+     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
+     * @principle Enforces shared access through the `userIds` array on the parent region.
      */
     match /regions/{regionId}/ndvi_entries/{ndviEntryId} {
-      function isRegionMember() {
-          return get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
-      }
-
-      allow get, list: if true;
-      allow create: if isSignedIn() && isRegionMember();
-      allow update: if resource != null && isSignedIn() && isRegionMember();
-      allow delete: if resource != null && isSignedIn() && isRegionMember();
+      allow get: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow update: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
+      allow delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
     }
 
     /**
-     * @description Grants access to bloom events based on user membership in the parent region's 'userIds' array.
+     * @description Controls access to bloom events. Access is inherited from the parent region.
      * @path /regions/{regionId}/bloom_events/{bloomEventId}
-     * @allow (get, list) Any user can read or list bloom events for a region.
-     * @allow (create) User 'user_abc' can create a bloom event if they are a member of the parent region.
-     * @allow (update, delete) User 'user_abc' can update or delete a bloom event if they are a member of the parent region.
-     * @deny (create, update, delete) User 'user_xyz' cannot create, update, or delete bloom events if they are not a member of the parent region.
-     * @principle Enforces shared access based on membership in the parent region's 'userIds' array.
+     * @allow (create) Only users with write access, through the `userIds` field of the parent region, can create a bloom event.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (get) Only users with read access, through the `userIds` field of the parent region, can read a bloom event.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (list) Only users with read access, through the `userIds` field of the parent region, can list bloom events.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds
+     * @allow (update) Only users with write access, through the `userIds` field of the parent region, can update a bloom event.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
+     * @allow (delete) Only users with write access, through the `userIds` field of the parent region, can delete a bloom event.
+     *          request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null
+     * @deny (create) User with ID 'user123' cannot create a bloom event if they are not in the 'userIds' array of the parent region.
+     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
+     * @deny (get) User with ID 'user123' cannot read a bloom event if they are not in the 'userIds' array of the parent region.
+     *          request.auth.uid == 'user123' and !('user123' in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds)
+     * @principle Enforces shared access through the `userIds` array on the parent region.
      */
     match /regions/{regionId}/bloom_events/{bloomEventId} {
-      function isRegionMember() {
-          return get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
-      }
-
-      allow get, list: if true;
-      allow create: if isSignedIn() && isRegionMember();
-      allow update: if resource != null && isSignedIn() && isRegionMember();
-      allow delete: if resource != null && isSignedIn() && isRegionMember();
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
+      allow get: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow list: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds;
+      allow update: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
+      allow delete: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/regions/$(regionId)).data.userIds && resource != null;
     }
   }
 }
