@@ -20,6 +20,32 @@ type BatchPredictionResult = {
     error: string;
 };
 
+async function logHistoryEvent(
+    type: 'PREDICTION',
+    regionName: string,
+    predictedDate?: string
+) {
+    try {
+        const { auth, firestore } = initializeFirebase();
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
+            const eventData: any = {
+                type,
+                regionName,
+                createdAt: serverTimestamp(),
+            };
+            if (predictedDate) {
+                eventData.predictedDate = predictedDate;
+            }
+            await addDoc(historyCollection, eventData);
+        }
+    } catch (error) {
+        console.error("Failed to log history event:", error);
+    }
+}
+
+
 export async function getBatchPredictions(regions: (Region | City)[]): Promise<BatchPredictionResult> {
     try {
         const mappedRegions = regions.map(r => ({
@@ -32,27 +58,17 @@ export async function getBatchPredictions(regions: (Region | City)[]): Promise<B
 
         const result = await getBatchPredictionsFlow({ regions: mappedRegions });
 
-        // Log successful predictions to history
-        const { auth, firestore } = initializeFirebase();
-        const currentUser = auth.currentUser;
-
-        if (currentUser && result) {
-            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
-            
-            const logPromises = result.map((prediction, index) => {
+        // Log successful predictions to history without blocking the response
+        if (result) {
+             const logPromises = result.map((prediction, index) => {
                 if (prediction.success) {
                     const region = regions[index];
-                    return addDoc(historyCollection, {
-                        type: 'PREDICTION',
-                        regionName: region.name,
-                        predictedDate: prediction.data.predictedNextBloomDate,
-                        createdAt: serverTimestamp(),
-                    });
+                    return logHistoryEvent('PREDICTION', region.name, prediction.data.predictedNextBloomDate);
                 }
                 return null;
             }).filter(p => p !== null);
-
-            await Promise.all(logPromises);
+            
+            Promise.all(logPromises);
         }
 
         return { success: true, predictions: result };
