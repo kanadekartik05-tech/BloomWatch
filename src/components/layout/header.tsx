@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { href: '/', label: 'Home' },
@@ -61,12 +62,17 @@ export default function Header() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
 
   const NavLink = ({ href, label, isProtected }: { href: string; label: string, isProtected?: boolean }) => {
     
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (isProtected && !user && !isUserLoading) {
             e.preventDefault();
+            toast({
+                title: "Authentication Required",
+                description: "Kindly login to use this service.",
+            });
             router.push(`/login?redirect=${href}`);
         } else {
             setIsMobileMenuOpen(false);
