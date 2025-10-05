@@ -1,9 +1,9 @@
+
 'use server';
 
 import { z } from 'zod';
-import { getFirestore } from 'firebase/firestore';
-import { doc, setDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
 
 
 const CreateUserProfileSchema = z.object({
@@ -32,13 +32,11 @@ export async function createUserProfile(userData: z.infer<typeof CreateUserProfi
   const { uid, email, displayName } = validatedFields.data;
 
   try {
-    // This is a server component, but we need a firestore instance.
-    // We can get it from the client-side initialization because this action
-    // is called from the client.
-    const { firestore } = initializeFirebase();
+    await initializeFirebaseAdmin();
+    const firestore = getFirestore();
 
-    const userRef = doc(firestore, 'users', uid);
-    await setDoc(userRef, {
+    const userRef = firestore.collection('users').doc(uid);
+    await userRef.set({
       uid: uid,
       email: email,
       displayName: displayName,

@@ -8,8 +8,9 @@ import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
 import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 import type { City } from "@/lib/geodata";
-import { initializeFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
+
 
 type PredictionResult = {
     success: true;
@@ -43,17 +44,18 @@ async function logHistoryEvent(
     predictedDate?: string
 ) {
     try {
-        const { firestore } = initializeFirebase();
-        const historyCollection = collection(firestore, 'users', userId, 'history');
+        await initializeFirebaseAdmin();
+        const firestore = getFirestore();
+        const historyCollection = firestore.collection('users').doc(userId).collection('history');
         const eventData: any = {
             type,
             regionName,
-            createdAt: serverTimestamp(),
+            createdAt: new Date(),
         };
         if (predictedDate) {
             eventData.predictedDate = predictedDate;
         }
-        await addDoc(historyCollection, eventData);
+        await historyCollection.add(eventData);
     } catch (error) {
         console.error("Failed to log history event:", error);
     }
@@ -74,7 +76,7 @@ export async function getAnalysisForCity(city: City, userId?: string, startDate?
         }
 
         if (userId) {
-            logHistoryEvent(userId, 'ANALYSIS', city.name);
+            await logHistoryEvent(userId, 'ANALYSIS', city.name);
         }
 
         return {
@@ -123,7 +125,7 @@ export async function getBloomPredictionForCity(city: City, userId?: string): Pr
         const result = await predictNextBloomDate(predictionInput);
 
         if (userId) {
-            logHistoryEvent(userId, 'PREDICTION', city.name, result.predictedNextBloomDate);
+            await logHistoryEvent(userId, 'PREDICTION', city.name, result.predictedNextBloomDate);
         }
 
         return { success: true, data: result };
@@ -145,7 +147,7 @@ export async function getChartSummary(input: ChartDataSummaryInput, userId?: str
         const result = await summarizeChartData(input);
 
         if (userId) {
-            logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
+            await logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
         }
 
         return { success: true, data: result };

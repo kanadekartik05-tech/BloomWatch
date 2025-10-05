@@ -5,8 +5,8 @@ import { getBatchPredictions as getBatchPredictionsFlow } from "@/ai/flows/get-b
 import type { BatchPredictionOutput, SinglePredictionResult } from "@/ai/flows/types";
 import type { Region } from "@/lib/data";
 import type { City } from "@/lib/geodata";
-import { initializeFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
 
 
 export type { SinglePredictionResult } from '@/ai/flows/types';
@@ -26,17 +26,18 @@ async function logHistoryEvent(
     predictedDate?: string
 ) {
     try {
-        const { firestore } = initializeFirebase();
-        const historyCollection = collection(firestore, 'users', userId, 'history');
+        await initializeFirebaseAdmin();
+        const firestore = getFirestore();
+        const historyCollection = firestore.collection('users').doc(userId).collection('history');
         const eventData: any = {
             type,
             regionName,
-            createdAt: serverTimestamp(),
+            createdAt: new Date(),
         };
         if (predictedDate) {
             eventData.predictedDate = predictedDate;
         }
-        await addDoc(historyCollection, eventData);
+        await historyCollection.add(eventData);
     } catch (error) {
         console.error("Failed to log history event:", error);
     }
@@ -64,7 +65,7 @@ export async function getBatchPredictions(regions: (Region | City)[], userId?: s
                 return null;
             }).filter(p => p !== null);
             
-            Promise.all(logPromises);
+            await Promise.all(logPromises);
         }
 
         return { success: true, predictions: result };

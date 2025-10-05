@@ -6,8 +6,8 @@ import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
 import type { ClimateDataInput, ClimateDataOutput, ChartDataSummaryInput, ChartDataSummaryOutput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
-import { initializeFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
 
 
 type ClimateResult = {
@@ -36,12 +36,13 @@ type SummaryResult = {
 
 async function logHistoryEvent(userId: string, type: 'CLIMATE_SUMMARY', regionName: string) {
     try {
-        const { firestore } = initializeFirebase();
-        const historyCollection = collection(firestore, 'users', userId, 'history');
-        await addDoc(historyCollection, {
+        await initializeFirebaseAdmin();
+        const firestore = getFirestore();
+        const historyCollection = firestore.collection('users').doc(userId).collection('history');
+        await historyCollection.add({
             type,
             regionName,
-            createdAt: serverTimestamp(),
+            createdAt: new Date(),
         });
     } catch (error) {
         console.error("Failed to log history event:", error);
@@ -88,7 +89,7 @@ export async function getChartSummary(input: ChartDataSummaryInput, userId?: str
         const result = await summarizeChartData(input);
         
         if (userId) {
-            logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
+            await logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
         }
 
         return { success: true, data: result };

@@ -7,8 +7,8 @@ import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import type { ClimateDataInput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
-import { initializeFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
 
 
 type PredictionResult = {
@@ -29,13 +29,14 @@ type NdviResult = {
 
 async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: string, predictedDate: string) {
     try {
-        const { firestore } = initializeFirebase();
-        const historyCollection = collection(firestore, 'users', userId, 'history');
-        await addDoc(historyCollection, {
+        await initializeFirebaseAdmin();
+        const firestore = getFirestore();
+        const historyCollection = firestore.collection('users').doc(userId).collection('history');
+        await historyCollection.add({
             type,
             regionName,
             predictedDate,
-            createdAt: serverTimestamp(),
+            createdAt: new Date(),
         });
     } catch (error) {
         console.error("Failed to log history event:", error);
@@ -85,7 +86,7 @@ export async function getEnhancedBloomPrediction(input: { cityName: string, lat:
         const result = await predictNextBloomDate(predictionInput);
 
         if (input.userId) {
-            logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result.predictedNextBloomDate);
+            await logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result.predictedNextBloomDate);
         }
         
         return { success: true, data: result };
