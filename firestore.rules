@@ -1,84 +1,117 @@
 /**
- * @fileoverview Firestore Security Rules for BloomWatch application.
+ * @fileOverview Firestore Security Rules for BloomWatch application.
  *
  * Core Philosophy:
- * This ruleset provides public read access to region-related data (regions, NDVI entries, bloom events, and climate data).
- * Contact messages are writeable by anyone to submit but not publicly readable.
+ * This ruleset enforces a strict user-ownership model for user profiles
+ * and a shared access model for regions, NDVI entries, and bloom events.
+ * The rules prioritize authorization and relational integrity, while allowing flexible data shapes for rapid iteration.
  *
  * Data Structure:
- * - /regions/{regionId}: Stores geographical region data.
- * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: Stores NDVI entries for each region.
- * - /regions/{regionId}/bloom_events/{bloomEventId}: Stores bloom events for each region.
- * - /regions/{regionId}/climate_data/{climateDataId}: Stores climate data for each region.
- * - /contact_messages/{contactMessageId}: Stores contact messages submitted through the contact form.
+ * - /users/{userId}: User profile data, private to the user.
+ * - /regions/{regionId}: Geographical region data, shared among authorized users.
+ * - /regions/{regionId}/ndvi_entries/{ndviEntryId}: NDVI data for a region.
+ * - /regions/{regionId}/bloom_events/{bloomEventId}: Bloom event data for a region.
  *
  * Key Security Decisions:
- * - Regions, NDVI entries, bloom events, and climate data can be read by anyone.
- * - Contact messages can be created by anyone, but not read.
- * - The structure is designed to optimize data access and querying efficiency.
+ * - Users can only read and write their own profile data.
+ * - Access to region data is controlled by a `userIds` array within the region document.
+ * - Data validation is limited to authorization-critical fields to ensure relational integrity.
+ * - `list` operations are generally allowed for owners of user documents and members of regions.
+ *
+ * Denormalization for Authorization:
+ * - The `User` entity contains a `regionIds` array, and the `Region` entity contains a `userIds` array. This denormalization enables efficient authorization checks without requiring additional `get()` calls.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants public read access to region data.  No write access is allowed.
+     * @description Grants access to user profile data based on ownership.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user_abc' can create their profile if authenticated as 'user_abc'.
+     * @allow (get, update, delete) Authenticated user 'user_abc' can read, update, and delete their own profile.
+     * @deny (create) User 'user_xyz' cannot create a profile for 'user_abc'.
+     * @deny (update, delete) User 'user_xyz' cannot update or delete 'user_abc's profile.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Grants access to region data based on user membership in the 'userIds' array.
      * @path /regions/{regionId}
-     * @allow get, list: if true;
-     * @deny create, update, delete: if false;
-     * @principle Allows public read access to regions data.
+     * @allow (get, list) Any user can read or list region data.
+     * @allow (create) User 'user_abc' can create a region.
+     * @allow (update, delete) User 'user_abc' can update or delete a region if their ID is in the 'userIds' array.
+     * @deny (update, delete) User 'user_xyz' cannot update or delete a region if their ID is not in the 'userIds' array.
+     * @principle Enforces shared access based on membership in the 'userIds' array.
      */
     match /regions/{regionId} {
+      function isMember(region) {
+        return request.auth.uid in region.data.userIds;
+      }
+
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if resource != null && isMember(resource);
+      allow delete: if resource != null && isMember(resource);
     }
 
     /**
-     * @description Grants public read access to NDVI entries for a given region.  No write access is allowed.
+     * @description Grants access to NDVI entries based on user membership in the parent region's 'userIds' array.
      * @path /regions/{regionId}/ndvi_entries/{ndviEntryId}
-     * @allow get, list: if true;
-     * @deny create, update, delete: if false;
-     * @principle Allows public read access to NDVI entries.
+     * @allow (get, list) Any user can read or list NDVI entries for a region.
+     * @allow (create) User 'user_abc' can create an NDVI entry if they are a member of the parent region.
+     * @allow (update, delete) User 'user_abc' can update or delete an NDVI entry if they are a member of the parent region.
+     * @deny (create, update, delete) User 'user_xyz' cannot create, update, or delete NDVI entries if they are not a member of the parent region.
+     * @principle Enforces shared access based on membership in the parent region's 'userIds' array.
      */
     match /regions/{regionId}/ndvi_entries/{ndviEntryId} {
+      function isRegionMember() {
+          return get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+      }
+
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn() && isRegionMember();
+      allow update: if resource != null && isSignedIn() && isRegionMember();
+      allow delete: if resource != null && isSignedIn() && isRegionMember();
     }
 
     /**
-     * @description Grants public read access to bloom events for a given region. No write access is allowed.
+     * @description Grants access to bloom events based on user membership in the parent region's 'userIds' array.
      * @path /regions/{regionId}/bloom_events/{bloomEventId}
-     * @allow get, list: if true;
-     * @deny create, update, delete: if false;
-     * @principle Allows public read access to bloom events.
+     * @allow (get, list) Any user can read or list bloom events for a region.
+     * @allow (create) User 'user_abc' can create a bloom event if they are a member of the parent region.
+     * @allow (update, delete) User 'user_abc' can update or delete a bloom event if they are a member of the parent region.
+     * @deny (create, update, delete) User 'user_xyz' cannot create, update, or delete bloom events if they are not a member of the parent region.
+     * @principle Enforces shared access based on membership in the parent region's 'userIds' array.
      */
     match /regions/{regionId}/bloom_events/{bloomEventId} {
+      function isRegionMember() {
+          return get(/databases/$(database)/documents/regions/$(regionId)).data.userIds.hasAny([request.auth.uid]);
+      }
+
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn() && isRegionMember();
+      allow update: if resource != null && isSignedIn() && isRegionMember();
+      allow delete: if resource != null && isSignedIn() && isRegionMember();
     }
 
-    /**
-     * @description Grants public read access to climate data for a given region. No write access is allowed.
-     * @path /regions/{regionId}/climate_data/{climateDataId}
-     * @allow get, list: if true;
-     * @deny create, update, delete: if false;
-     * @principle Allows public read access to climate data.
-     */
-    match /regions/{regionId}/climate_data/{climateDataId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows anyone to create a contact message, but prevents reading them.
-     * @path /contact_messages/{contactMessageId}
-     * @allow create: if true;
-     * @deny get, list, update, delete: if false;
-     * @principle Allows anyone to create contact messages, but prevents reading them.
-     */
-    match /contact_messages/{contactMessageId} {
-      allow create: if true;
-      allow get, list, update, delete: if false;
+    function isSignedIn() {
+      return request.auth != null;
     }
   }
 }

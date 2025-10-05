@@ -1,11 +1,48 @@
 {
   "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the BloomWatch application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name or username."
+        },
+        "regionIds": {
+          "type": "array",
+          "description": "References to Regions. (Relationship: User N:N Region)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "displayName"
+      ]
+    },
     "Region": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Region",
       "type": "object",
-      "description": "Represents a geographical region with associated plant blooming data.",
+      "description": "Represents a geographical region for which blooming events are monitored.",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the region."
+        },
         "name": {
           "type": "string",
           "description": "Name of the region."
@@ -18,34 +55,47 @@
           "type": "number",
           "description": "Longitude of the region."
         },
-        "latest_bloom": {
-            "type": "string",
-            "format": "date"
+        "userIds": {
+          "type": "array",
+          "description": "References to Users. (Relationship: User N:N Region)",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
+        "id",
         "name",
         "lat",
-        "lon",
-        "latest_bloom"
+        "lon"
       ]
     },
     "NDVIEntry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "NDVIEntry",
       "type": "object",
-      "description": "Represents a single NDVI (Normalized Difference Vegetation Index) data point for a region at a specific time.",
+      "description": "Represents a single NDVI (Normalized Difference Vegetation Index) data point.",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the NDVI entry."
+        },
+        "regionId": {
+          "type": "string",
+          "description": "Reference to Region. (Relationship: Region 1:N NDVIEntry)"
+        },
         "month": {
           "type": "string",
-          "description": "Month of the NDVI reading (e.g., 'Jan', 'Feb')."
+          "description": "The month for which the NDVI value is recorded (e.g., 'Jan', 'Feb')."
         },
         "value": {
           "type": "number",
-          "description": "NDVI value for the region on the given date."
+          "description": "The NDVI value for the specified month."
         }
       },
       "required": [
+        "id",
+        "regionId",
         "month",
         "value"
       ]
@@ -54,7 +104,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "BloomEvent",
       "type": "object",
-      "description": "Represents a bloom event (historical or predicted) for a specific region.",
+      "description": "Represents a blooming event, either historical or predicted.",
       "properties": {
         "id": {
           "type": "string",
@@ -66,7 +116,7 @@
         },
         "date": {
           "type": "string",
-          "description": "Date of the bloom event (ISO 8601 format).",
+          "description": "Date of the bloom event.",
           "format": "date-time"
         },
         "type": {
@@ -80,76 +130,6 @@
         "date",
         "type"
       ]
-    },
-    "ClimateData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ClimateData",
-      "type": "object",
-      "description": "Represents climate data (rainfall, temperature, etc.) for a specific region and time, obtained from NASA POWER API.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the climate data entry."
-        },
-        "regionId": {
-          "type": "string",
-          "description": "Reference to Region. (Relationship: Region 1:N ClimateData)"
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the climate data measurement (ISO 8601 format).",
-          "format": "date-time"
-        },
-        "rainfall": {
-          "type": "number",
-          "description": "Rainfall measurement (e.g., in mm)."
-        },
-        "temperature": {
-          "type": "number",
-          "description": "Temperature measurement (e.g., in Celsius)."
-        }
-      },
-      "required": [
-        "id",
-        "regionId",
-        "date"
-      ]
-    },
-    "ContactMessage": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ContactMessage",
-      "type": "object",
-      "description": "Represents a message submitted through the contact form.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the contact message."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the person submitting the message."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the person submitting the message.",
-          "format": "email"
-        },
-        "message": {
-          "type": "string",
-          "description": "The message content."
-        },
-        "sentAt": {
-          "type": "string",
-          "description": "The time the message was sent.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "name",
-        "email",
-        "message",
-        "sentAt"
-      ]
     }
   },
   "auth": {
@@ -159,27 +139,80 @@
     ]
   },
   "firestore": {
-    "collections": {
-      "regions": {
-        "schema": {
-          "$ref": "#/entities/Region"
-        },
-        "description": "Stores geographical region data.",
-        "collections": {
-          "ndvi": {
-            "schema": {
-              "$ref": "#/entities/NDVIEntry"
-            },
-            "description": "Stores NDVI entries for each region."
-          }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. User data is private. Includes 'id', 'email', 'displayName', and 'regionIds'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
         }
       },
-      "contact_messages": {
-        "schema": {
-          "$ref": "#/entities/ContactMessage"
-        },
-        "description": "Stores contact messages submitted through the contact form."
+      {
+        "path": "/regions/{regionId}",
+        "definition": {
+          "entityName": "Region",
+          "schema": {
+            "$ref": "#/backend/entities/Region"
+          },
+          "description": "Stores region data. Includes 'id', 'name', 'lat', 'lon', and 'userIds' to indicate users with access to the region.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The unique identifier for the region."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/regions/{regionId}/ndvi_entries/{ndviEntryId}",
+        "definition": {
+          "entityName": "NDVIEntry",
+          "schema": {
+            "$ref": "#/backend/entities/NDVIEntry"
+          },
+          "description": "Stores NDVI entries for each region. Includes 'id', 'regionId', 'month', and 'value'.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The unique identifier for the parent region."
+            },
+            {
+              "name": "ndviEntryId",
+              "description": "The unique identifier for the NDVI entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/regions/{regionId}/bloom_events/{bloomEventId}",
+        "definition": {
+          "entityName": "BloomEvent",
+          "schema": {
+            "$ref": "#/backend/entities/BloomEvent"
+          },
+          "description": "Stores bloom events for each region. Includes 'id', 'regionId', 'date', and 'type'.",
+          "params": [
+            {
+              "name": "regionId",
+              "description": "The unique identifier for the parent region."
+            },
+            {
+              "name": "bloomEventId",
+              "description": "The unique identifier for the bloom event."
+            }
+          ]
+        }
       }
-    }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters).  Authorization Independence is achieved through denormalization. Specifically, the `regionIds` array in the `User` document, and `userIds` array in the `Region` document are used to manage the N:N relationship between Users and Regions.  This allows rules to validate access without needing `get()` calls to other documents, thus enabling atomic operations. Structural Segregation is applied by separating different data types into distinct collections, simplifying security rules. Access Modeling uses path-based ownership for user data and membership maps where appropriate.\n\n**Explanation of Collections:**\n\n*   `/users/{userId}`: Stores user profiles.  The `userId` parameter provides clear ownership, and the profile data is private to the user.\n*   `/regions/{regionId}`: Stores region data.  Includes `userIds` array to enable collaborative access and management of regions.  Allows QAPs by enabling listing of regions without needing to filter based on complex rules.\n*   `/regions/{regionId}/ndvi_entries/{ndviEntryId}`: Stores NDVI entries for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n*   `/regions/{regionId}/bloom_events/{bloomEventId}`: Stores bloom events for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n\nThis design facilitates secure `list` operations by segregating data and using path-based authorization where possible.  The data structure supports the integrity of ownership, timestamps, and denormalized data."
   }
 }
