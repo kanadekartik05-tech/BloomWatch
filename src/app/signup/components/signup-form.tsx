@@ -101,7 +101,7 @@ export function SignUpForm() {
             title: "Sign Up Successful!",
             description: "Welcome to BloomWatch.",
         });
-        router.push('/dashboard');
+        router.push('/');
     }
   }, [user, isUserLoading, router, toast]);
 

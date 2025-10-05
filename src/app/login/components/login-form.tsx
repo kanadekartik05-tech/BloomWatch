@@ -81,7 +81,7 @@ export function LoginForm() {
             title: "Logged In!",
             description: "You have been successfully logged in.",
         });
-        router.push('/dashboard');
+        router.push('/');
     }
   }, [user, isUserLoading, router, toast]);
 
