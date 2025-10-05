@@ -1,3 +1,4 @@
+
 import { Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ClimateView } from './components/climate-view';
@@ -9,7 +10,7 @@ export const metadata = {
 };
 
 export default function ClimatePage() {
-    const apiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
+    const apiKey = process.env.NASA_API_KEY;
 
     if (!apiKey || apiKey === "YOUR_NASA_API_KEY_HERE") {
         return (
@@ -22,7 +23,7 @@ export default function ClimatePage() {
                         <a href="https://power.larc.nasa.gov/login" target="_blank" rel="noopener noreferrer" className="underline">
                             NASA POWER
                         </a>{' '}
-                        and set the <code>NEXT_PUBLIC_NASA_API_KEY</code> environment variable.
+                        and set the <code>NASA_API_KEY</code> environment variable.
                     </AlertDescription>
                 </Alert>
             </div>

@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function MapPage() {
   const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const nasaApiKey = process.env.NEXT_PUBLIC_NASA_API_KEY;
+  const nasaApiKey = process.env.NASA_API_KEY;
 
   if (!googleApiKey || !nasaApiKey || nasaApiKey === "YOUR_NASA_API_KEY_HERE") {
     return (
@@ -19,7 +19,7 @@ export default function MapPage() {
           <Terminal className="h-4 w-4" />
           <AlertTitle>Configuration Error</AlertTitle>
           <AlertDescription>
-            One or more API keys are not configured. Please set the <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> and <code>NEXT_PUBLIC_NASA_API_KEY</code> environment variables.
+            One or more API keys are not configured. Please set the <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> and <code>NASA_API_KEY</code> environment variables.
           </AlertDescription>
         </Alert>
       </div>
