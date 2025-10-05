@@ -93,3 +93,10 @@ export type SinglePredictionResult = z.infer<typeof SinglePredictionResultSchema
 
 export const BatchPredictionOutputSchema = z.array(SinglePredictionResultSchema);
 export type BatchPredictionOutput = z.infer<typeof BatchPredictionOutputSchema>;
+
+
+export const BloomAnalysisInputSchema = z.object({
+    locationName: z.string().describe('The name of the city or state being analyzed.'),
+    vegetationData: NdviDataSchema.describe('The vegetation data (insolation proxy) for the location.'),
+});
+export type BloomAnalysisInput = z.infer<typeof BloomAnalysisInputSchema>;

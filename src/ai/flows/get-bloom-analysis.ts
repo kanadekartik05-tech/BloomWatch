@@ -11,13 +11,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { PredictNextBloomDateOutputSchema, NdviDataSchema } from './types';
+import { PredictNextBloomDateOutputSchema, BloomAnalysisInputSchema, BloomAnalysisInput } from './types';
 
-export const BloomAnalysisInputSchema = z.object({
-    locationName: z.string().describe('The name of the city or state being analyzed.'),
-    vegetationData: NdviDataSchema.describe('The vegetation data (insolation proxy) for the location.'),
-});
-export type BloomAnalysisInput = z.infer<typeof BloomAnalysisInputSchema>;
 
 export async function getBloomAnalysis(input: BloomAnalysisInput): Promise<z.infer<typeof PredictNextBloomDateOutputSchema>> {
     return getBloomAnalysisFlow(input);
