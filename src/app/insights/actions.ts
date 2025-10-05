@@ -1,19 +1,17 @@
 
 'use server';
 
-import { predictNextBloomDate } from "@/ai/flows/predict-next-bloom-date";
-import type { PredictNextBloomDateInput, PredictNextBloomDateOutput } from "@/ai/flows/types";
-import { getClimateData } from "@/ai/flows/get-climate-data";
+import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
+import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput } from "@/ai/flows/types";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
-import type { ClimateDataInput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import { getFirestore } from 'firebase-admin/firestore';
 
 
-type PredictionResult = {
+type SummaryResult = {
     success: true;
-    data: PredictNextBloomDateOutput;
+    data: ChartDataSummaryOutput;
 } | {
     success: false;
     error: string;
@@ -27,7 +25,7 @@ type NdviResult = {
     error: string;
 };
 
-async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: string, prediction: PredictNextBloomDateOutput) {
+async function logHistoryEvent(userId: string, type: 'CLIMATE_SUMMARY', regionName: string, summary: string) {
     try {
         await initializeFirebaseAdmin();
         const firestore = getFirestore();
@@ -35,7 +33,7 @@ async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: s
         await historyCollection.add({
             type,
             regionName,
-            prediction,
+            summary,
             createdAt: new Date(),
         });
     } catch (error) {
@@ -64,37 +62,20 @@ export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<N
 }
 
 
-export async function getEnhancedBloomPrediction(input: { cityName: string, lat: number, lon: number, ndviData: NdviDataOutput, userId?: string }): Promise<PredictionResult> {
+export async function getChartSummary(input: ChartDataSummaryInput, userId?: string): Promise<SummaryResult> {
     try {
-        // 1. Fetch climate data first
-        const climateInput: ClimateDataInput = { lat: input.lat, lon: input.lon };
-        const climateResult = await getClimateData(climateInput);
-        
-        // Use a dummy bloom date for now. In a real app this might come from a DB.
-        const dummyLatestBloom = `${new Date().getFullYear()}-04-01`;
+        const result = await summarizeChartData(input);
 
-        // 2. Combine with other input and get prediction
-        const predictionInput: PredictNextBloomDateInput = {
-            regionName: input.cityName,
-            lat: input.lat,
-            lon: input.lon,
-            climateData: climateResult,
-            ndviData: input.ndviData, // Pass the full ndviData object which includes the date
-            latestBloomDate: dummyLatestBloom,
-        };
-        
-        const result = await predictNextBloomDate(predictionInput);
-
-        if (input.userId) {
-            await logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result);
+        if (userId) {
+            await logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName, result.summary);
         }
         
         return { success: true, data: result };
 
     } catch (error) {
-        console.error("Error getting enhanced bloom prediction:", error);
+        console.error("Error getting chart summary:", error);
         
-        let errorMessage = "Failed to get prediction from AI.";
+        let errorMessage = "Failed to get summary from AI.";
         if (error instanceof Error) {
             errorMessage = error.message;
         }
