@@ -5,19 +5,41 @@ import { useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader, List, Flower } from 'lucide-react';
+import { Loader, List, Flower, BarChart3, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 type HistoryEvent = {
     id: string;
-    type: 'PREDICTION';
+    type: 'PREDICTION' | 'ANALYSIS' | 'CLIMATE_SUMMARY';
     regionName: string;
-    predictedDate: string;
+    predictedDate?: string;
     createdAt: {
         seconds: number;
         nanoseconds: number;
     };
 };
+
+const eventConfig = {
+    PREDICTION: {
+        icon: Flower,
+        color: "text-primary",
+        title: (region: string) => `Predicted bloom for ${region}`,
+        description: (date?: string) => date ? `Bloom expected around: ${format(new Date(date), 'PPP')}` : 'No date predicted'
+    },
+    ANALYSIS: {
+        icon: BarChart3,
+        color: "text-blue-500",
+        title: (region: string) => `Analyzed data for ${region}`,
+        description: () => `Viewed vegetation & climate charts`
+    },
+    CLIMATE_SUMMARY: {
+        icon: MessageCircle,
+        color: "text-orange-500",
+        title: (region: string) => `Generated summary for ${region}`,
+        description: () => `AI-powered chart explanation`
+    }
+};
+
 
 export function History() {
     const { user, isUserLoading } = useUser();
@@ -51,8 +73,8 @@ export function History() {
     return (
         <Card className="mt-12">
             <CardHeader>
-                <CardTitle>Prediction History</CardTitle>
-                <CardDescription>Your most recent prediction requests.</CardDescription>
+                <CardTitle>Activity History</CardTitle>
+                <CardDescription>Your most recent activities across the app.</CardDescription>
             </CardHeader>
             <CardContent>
                 {isLoading && (
@@ -68,24 +90,29 @@ export function History() {
 
                 {!isLoading && history && history.length > 0 && (
                     <ul className="space-y-4">
-                        {history.map((item) => (
-                            <li key={item.id} className="flex items-center justify-between rounded-md border p-4">
-                                <div className="flex items-center gap-4">
-                                    <Flower className="h-6 w-6 text-primary" />
-                                    <div>
-                                        <p className="font-semibold">
-                                            Predicted bloom for <span className="text-accent">{item.regionName}</span>
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            Bloom expected around: {format(new Date(item.predictedDate), 'PPP')}
-                                        </p>
+                        {history.map((item) => {
+                            const config = eventConfig[item.type] || eventConfig.ANALYSIS;
+                            const Icon = config.icon;
+
+                            return (
+                                <li key={item.id} className="flex items-center justify-between rounded-md border p-4">
+                                    <div className="flex items-center gap-4">
+                                        <Icon className={`h-6 w-6 ${config.color}`} />
+                                        <div>
+                                            <p className="font-semibold">
+                                                {config.title(item.regionName)}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {config.description(item.predictedDate)}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                    {format(new Date(item.createdAt.seconds * 1000), 'Pp')}
-                                </span>
-                            </li>
-                        ))}
+                                    <span className="text-xs text-muted-foreground">
+                                        {format(new Date(item.createdAt.seconds * 1000), 'Pp')}
+                                    </span>
+                                </li>
+                            )
+                        })}
                     </ul>
                 )}
                 
@@ -94,7 +121,7 @@ export function History() {
                         <List className="h-10 w-10 text-muted-foreground" />
                         <h3 className="text-lg font-semibold">No History Yet</h3>
                         <p className="text-sm text-muted-foreground">
-                            Your prediction history will appear here once you add a city to your dashboard.
+                            Your activity history will appear here as you use the app.
                         </p>
                     </div>
                 )}

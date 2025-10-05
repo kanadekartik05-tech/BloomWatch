@@ -150,7 +150,9 @@
           "type": "string",
           "description": "The type of event that occurred.",
           "enum": [
-            "PREDICTION"
+            "PREDICTION",
+            "ANALYSIS",
+            "CLIMATE_SUMMARY"
           ]
         },
         "regionName": {

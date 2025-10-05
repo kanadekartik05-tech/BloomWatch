@@ -8,6 +8,9 @@ import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
 import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
 import type { City } from "@/lib/geodata";
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 type PredictionResult = {
     success: true;
@@ -34,6 +37,32 @@ type SummaryResult = {
     error: string;
 }
 
+async function logHistoryEvent(
+    type: 'PREDICTION' | 'ANALYSIS' | 'CLIMATE_SUMMARY',
+    regionName: string,
+    predictedDate?: string
+) {
+    try {
+        const { auth, firestore } = initializeFirebase();
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
+            const eventData: any = {
+                type,
+                regionName,
+                createdAt: serverTimestamp(),
+            };
+            if (predictedDate) {
+                eventData.predictedDate = predictedDate;
+            }
+            await addDoc(historyCollection, eventData);
+        }
+    } catch (error) {
+        console.error("Failed to log history event:", error);
+    }
+}
+
+
 export async function getAnalysisForCity(city: City, startDate?: string, endDate?: string): Promise<CityAnalysisResult> {
      try {
         const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon, startDate, endDate };
@@ -47,6 +76,8 @@ export async function getAnalysisForCity(city: City, startDate?: string, endDate
         if (ndviResult.length === 0) {
             return { success: false, error: "No vegetation data was found for this location." };
         }
+
+        logHistoryEvent('ANALYSIS', city.name);
 
         return {
             success: true,
@@ -94,6 +125,9 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
         };
         
         const result = await predictNextBloomDate(predictionInput);
+
+        logHistoryEvent('PREDICTION', city.name, result.predictedNextBloomDate);
+
         return { success: true, data: result };
 
     } catch (error) {
@@ -111,6 +145,9 @@ export async function getBloomPredictionForCity(city: City): Promise<PredictionR
 export async function getChartSummary(input: ChartDataSummaryInput): Promise<SummaryResult> {
     try {
         const result = await summarizeChartData(input);
+
+        logHistoryEvent('CLIMATE_SUMMARY', input.locationName);
+
         return { success: true, data: result };
     } catch(error) {
         console.error("Error getting chart summary:", error);

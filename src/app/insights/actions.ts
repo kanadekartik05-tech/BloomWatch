@@ -7,6 +7,9 @@ import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData } from "@/ai/flows/get-ndvi-data";
 import type { ClimateDataInput } from "@/ai/flows/types";
 import type { NdviDataOutput } from "@/ai/flows/get-ndvi-data";
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 
 type PredictionResult = {
@@ -24,6 +27,25 @@ type NdviResult = {
     success: false;
     error: string;
 };
+
+async function logHistoryEvent(type: 'PREDICTION', regionName: string, predictedDate: string) {
+    try {
+        const { auth, firestore } = initializeFirebase();
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            const historyCollection = collection(firestore, 'users', currentUser.uid, 'history');
+            await addDoc(historyCollection, {
+                type,
+                regionName,
+                predictedDate,
+                createdAt: serverTimestamp(),
+            });
+        }
+    } catch (error) {
+        console.error("Failed to log history event:", error);
+    }
+}
+
 
 export async function fetchNdviDataForRegion(input: ClimateDataInput): Promise<NdviResult> {
     try {
@@ -66,6 +88,10 @@ export async function getEnhancedBloomPrediction(input: { cityName: string, lat:
         };
         
         const result = await predictNextBloomDate(predictionInput);
+
+        // Log the prediction event to history
+        logHistoryEvent('PREDICTION', input.cityName, result.predictedNextBloomDate);
+        
         return { success: true, data: result };
 
     } catch (error) {
