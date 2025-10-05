@@ -16,7 +16,7 @@ type ComparisonViewProps = {
 type ComparisonData = {
   city: City;
   prediction: PredictNextBloomDateOutput | null;
-  vegetationData: { month: string; value: number }[] | null;
+  vegetationData: { month: string; value: number, date: string }[] | null;
   isLoading: boolean;
   error: string | null;
 };
@@ -46,7 +46,8 @@ export function ComparisonView({ cities }: ComparisonViewProps) {
             };
 
             try {
-              const result = await getBloomPredictionForCity(city);
+              // We pass null for state/country as this is a simplified view
+              const result = await getBloomPredictionForCity(city, null, null);
               if (result.success) {
                 return {
                   ...initialData,
@@ -131,3 +132,5 @@ export function ComparisonView({ cities }: ComparisonViewProps) {
     </div>
   );
 }
+
+    

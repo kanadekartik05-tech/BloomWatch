@@ -86,7 +86,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
             const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
             const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
 
-            const result = await getAnalysisForCity(city, user?.uid, start, end);
+            const result = await getAnalysisForCity(city, state, country, user?.uid, start, end);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -112,7 +112,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
           setPrediction(null);
           setPredictionError(null);
           
-          const result = await getBloomPredictionForCity(city, user?.uid);
+          const result = await getBloomPredictionForCity(city, state, country, user?.uid);
     
           if (result.success && result.data) {
             setPrediction(result.data);
@@ -132,7 +132,7 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
                 locationName: city.name,
                 climateData,
                 vegetationData,
-            }, user?.uid);
+            }, city, state, country, user?.uid);
             if (result.success) {
                 setSummary(result.data.summary);
             } else {
@@ -395,3 +395,5 @@ export function CityInfoPanel({ city, state, country, onBackToStates, onClose }:
     </Card>
   );
 }
+
+    

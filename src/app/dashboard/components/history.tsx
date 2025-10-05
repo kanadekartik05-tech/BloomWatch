@@ -5,14 +5,20 @@ import { useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader, List, Flower, BarChart3, MessageCircle } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Loader, List, Flower, BarChart3, MessageCircle, Sprout, PersonStanding } from 'lucide-react';
 import { format } from 'date-fns';
+import type { PredictNextBloomDateOutput } from '@/ai/flows/types';
 
 type HistoryEvent = {
     id: string;
     type: 'PREDICTION' | 'ANALYSIS' | 'CLIMATE_SUMMARY';
     regionName: string;
-    predictedDate?: string;
+    city: string;
+    state: string;
+    country: string;
+    summary?: string;
+    prediction?: PredictNextBloomDateOutput;
     createdAt: {
         seconds: number;
         nanoseconds: number;
@@ -21,22 +27,19 @@ type HistoryEvent = {
 
 const eventConfig = {
     PREDICTION: {
-        icon: Flower,
-        color: "text-primary",
-        title: (region: string) => `Predicted bloom for ${region}`,
-        description: (date?: string) => date ? `Bloom expected around: ${format(new Date(date), 'PPP')}` : 'No date predicted'
+        icon: Wand2,
+        color: "text-purple-500",
+        title: (region: string) => `AI Prediction for ${region}`,
     },
     ANALYSIS: {
         icon: BarChart3,
         color: "text-blue-500",
-        title: (region: string) => `Analyzed data for ${region}`,
-        description: () => `Viewed vegetation & climate charts`
+        title: (region: string) => `Analyzed charts for ${region}`,
     },
     CLIMATE_SUMMARY: {
         icon: MessageCircle,
         color: "text-orange-500",
         title: (region: string) => `Generated summary for ${region}`,
-        description: () => `AI-powered chart explanation`
     }
 };
 
@@ -64,11 +67,16 @@ export function History() {
         return (
             <div className="mt-12">
                 <p className="text-center text-muted-foreground">
-                    Please <a href="/login" className="text-primary underline">log in</a> to see your prediction history.
+                    Please <a href="/login" className="text-primary underline">log in</a> to see your activity history.
                 </p>
             </div>
         );
     }
+    
+    const getLocationString = (item: HistoryEvent) => {
+        return [item.city, item.state, item.country].filter(Boolean).join(', ');
+    }
+
 
     return (
         <Card className="mt-12">
@@ -89,31 +97,70 @@ export function History() {
                 )}
 
                 {!isLoading && history && history.length > 0 && (
-                    <ul className="space-y-4">
+                    <Accordion type="single" collapsible className="w-full space-y-2">
                         {history.map((item) => {
                             const config = eventConfig[item.type] || eventConfig.ANALYSIS;
                             const Icon = config.icon;
 
                             return (
-                                <li key={item.id} className="flex items-center justify-between rounded-md border p-4">
-                                    <div className="flex items-center gap-4">
-                                        <Icon className={`h-6 w-6 ${config.color}`} />
-                                        <div>
-                                            <p className="font-semibold">
-                                                {config.title(item.regionName)}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {config.description(item.predictedDate)}
-                                            </p>
+                                <AccordionItem value={item.id} key={item.id} className="rounded-md border px-4">
+                                     <AccordionTrigger>
+                                        <div className="flex w-full items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <Icon className={`h-6 w-6 ${config.color}`} />
+                                                <div className="text-left">
+                                                    <p className="font-semibold">
+                                                        {config.title(item.regionName)}
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {getLocationString(item)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground pr-4">
+                                                {format(new Date(item.createdAt.seconds * 1000), 'Pp')}
+                                            </span>
                                         </div>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                        {format(new Date(item.createdAt.seconds * 1000), 'Pp')}
-                                    </span>
-                                </li>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pt-2 pb-4">
+                                        {item.type === 'CLIMATE_SUMMARY' && item.summary && (
+                                            <div className="border-t pt-4 mt-2">
+                                                 <h4 className="font-semibold mb-2">AI Summary</h4>
+                                                <p className="text-sm text-muted-foreground italic">"{item.summary}"</p>
+                                            </div>
+                                        )}
+                                        {item.type === 'PREDICTION' && item.prediction && (
+                                            <div className="border-t pt-4 mt-2 space-y-4">
+                                                <div className="font-semibold">
+                                                    Predicted Bloom Date: <span className="text-primary">{new Date(item.prediction.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground italic">"{item.prediction.predictionJustification}"</p>
+                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                                    <div className="space-y-1">
+                                                        <h5 className="font-semibold flex items-center gap-2"><Flower className="text-accent h-4 w-4"/>Ecological Significance</h5>
+                                                        <p className="text-muted-foreground">{item.prediction.ecologicalSignificance}</p>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <h5 className="font-semibold flex items-center gap-2"><Sprout className="text-accent h-4 w-4"/>Potential Species</h5>
+                                                        <p className="text-muted-foreground">{item.prediction.potentialSpecies}</p>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <h5 className="font-semibold flex items-center gap-2"><PersonStanding className="text-accent h-4 w-4"/>Human Impact</h5>
+                                                        <p className="text-muted-foreground">{item.prediction.humanImpact}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {item.type === 'ANALYSIS' && (
+                                             <div className="border-t pt-4 mt-2">
+                                                <p className="text-sm text-muted-foreground">Viewed climate and vegetation charts for this location.</p>
+                                            </div>
+                                        )}
+                                    </AccordionContent>
+                                </AccordionItem>
                             )
                         })}
-                    </ul>
+                    </Accordion>
                 )}
                 
                 {!isLoading && (!history || history.length === 0) && (
@@ -129,3 +176,5 @@ export function History() {
         </Card>
     );
 }
+
+    

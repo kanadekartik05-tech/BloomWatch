@@ -159,10 +159,21 @@
           "type": "string",
           "description": "The name of the region associated with the event."
         },
-        "predictedDate": {
-          "type": "string",
-          "description": "The predicted bloom date, if applicable.",
-          "format": "date"
+        "country": {
+            "type": "string",
+            "description": "The country of the event location."
+        },
+        "state": {
+            "type": "string",
+            "description": "The state of the event location."
+        },
+        "summary": {
+            "type": "string",
+            "description": "The AI-generated summary for the event."
+        },
+        "prediction": {
+            "type": "object",
+            "description": "The detailed AI prediction data."
         },
         "createdAt": {
           "type": "string",
@@ -283,3 +294,5 @@
     "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable. A new 'history' subcollection has been added under each user's document to store a log of their activities. This keeps user data private and logically grouped.  Authorization Independence is achieved through denormalization. Specifically, the `regionIds` array in the `User` document, and `userIds` array in the `Region` document are used to manage the N:N relationship between Users and Regions.  This allows rules to validate access without needing `get()` calls to other documents, thus enabling atomic operations. Structural Segregation is applied by separating different data types into distinct collections, simplifying security rules. Access Modeling uses path-based ownership for user data and membership maps where appropriate.\n\n**Explanation of Collections:**\n\n*   `/users/{userId}`: Stores user profiles.  The `userId` parameter provides clear ownership, and the profile data is private to the user.\n*   `/users/{userId}/history/{historyId}`: Stores a log of each user's activities. This data is private and only accessible by the authenticated user.\n*   `/regions/{regionId}`: Stores region data.  Includes `userIds` array to enable collaborative access and management of regions.  Allows QAPs by enabling listing of regions without needing to filter based on complex rules.\n*   `/regions/{regionId}/ndvi_entries/{ndviEntryId}`: Stores NDVI entries for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n*   `/regions/{regionId}/bloom_events/{bloomEventId}`: Stores bloom events for each region. The `regionId` path segment ensures clear association, and data can be listed securely within the context of a region.\n\nThis design facilitates secure `list` operations by segregating data and using path-based authorization where possible.  The data structure supports the integrity of ownership, timestamps, and denormalized data."
   }
 }
+
+    

@@ -7,7 +7,7 @@ import { getClimateData } from "@/ai/flows/get-climate-data";
 import { getNdviData, type NdviDataOutput } from "@/ai/flows/get-ndvi-data";
 import { summarizeChartData } from "@/ai/flows/summarize-chart-data";
 import type { ChartDataSummaryInput, ChartDataSummaryOutput, ClimateDataInput, ClimateDataOutput } from "@/ai/flows/types";
-import type { City } from "@/lib/geodata";
+import type { City, Country, State } from "@/lib/geodata";
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -37,24 +37,40 @@ type SummaryResult = {
     error: string;
 }
 
-async function logHistoryEvent(
-    userId: string,
-    type: 'PREDICTION' | 'ANALYSIS' | 'CLIMATE_SUMMARY',
-    regionName: string,
-    predictedDate?: string
-) {
+type HistoryLogInput = {
+    userId: string;
+    type: 'PREDICTION' | 'ANALYSIS' | 'CLIMATE_SUMMARY';
+    city: City;
+    state?: State | null;
+    country?: Country | null;
+    prediction?: PredictNextBloomDateOutput;
+    summary?: string;
+};
+
+
+async function logHistoryEvent(input: HistoryLogInput) {
+    const { userId, type, city, state, country, prediction, summary } = input;
     try {
         await initializeFirebaseAdmin();
         const firestore = getFirestore();
         const historyCollection = firestore.collection('users').doc(userId).collection('history');
+        
         const eventData: any = {
             type,
-            regionName,
+            regionName: city.name,
+            city: city.name,
+            state: state?.name || null,
+            country: country?.name || null,
             createdAt: new Date(),
         };
-        if (predictedDate) {
-            eventData.predictedDate = predictedDate;
+
+        if (prediction) {
+            eventData.prediction = prediction;
         }
+        if (summary) {
+            eventData.summary = summary;
+        }
+
         await historyCollection.add(eventData);
     } catch (error) {
         console.error("Failed to log history event:", error);
@@ -62,7 +78,14 @@ async function logHistoryEvent(
 }
 
 
-export async function getAnalysisForCity(city: City, userId?: string, startDate?: string, endDate?: string): Promise<CityAnalysisResult> {
+export async function getAnalysisForCity(
+    city: City,
+    state: State | null,
+    country: Country | null,
+    userId?: string,
+    startDate?: string,
+    endDate?: string
+): Promise<CityAnalysisResult> {
      try {
         const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon, startDate, endDate };
 
@@ -76,7 +99,7 @@ export async function getAnalysisForCity(city: City, userId?: string, startDate?
         }
 
         if (userId) {
-            await logHistoryEvent(userId, 'ANALYSIS', city.name);
+            await logHistoryEvent({ userId, type: 'ANALYSIS', city, state, country });
         }
 
         return {
@@ -98,7 +121,12 @@ export async function getAnalysisForCity(city: City, userId?: string, startDate?
 }
 
 
-export async function getBloomPredictionForCity(city: City, userId?: string): Promise<PredictionResult> {
+export async function getBloomPredictionForCity(
+    city: City,
+    state: State | null,
+    country: Country | null,
+    userId?: string
+): Promise<PredictionResult> {
     try {
         const climateInput: ClimateDataInput = { lat: city.lat, lon: city.lon };
 
@@ -117,7 +145,7 @@ export async function getBloomPredictionForCity(city: City, userId?: string): Pr
             regionName: city.name,
             lat: city.lat,
             lon: city.lon,
-            ndviData: ndviResult.map(d => ({ month: d.month, value: d.value })),
+            ndviData: ndviResult.map(d => ({ month: d.month, value: d.value, date: d.date })),
             latestBloomDate: dummyLatestBloom,
             climateData: climateResult,
         };
@@ -125,7 +153,7 @@ export async function getBloomPredictionForCity(city: City, userId?: string): Pr
         const result = await predictNextBloomDate(predictionInput);
 
         if (userId) {
-            await logHistoryEvent(userId, 'PREDICTION', city.name, result.predictedNextBloomDate);
+            await logHistoryEvent({ userId, type: 'PREDICTION', city, state, country, prediction: result });
         }
 
         return { success: true, data: result };
@@ -142,12 +170,18 @@ export async function getBloomPredictionForCity(city: City, userId?: string): Pr
     }
 }
 
-export async function getChartSummary(input: ChartDataSummaryInput, userId?: string): Promise<SummaryResult> {
+export async function getChartSummary(
+    input: ChartDataSummaryInput,
+    city: City,
+    state: State | null,
+    country: Country | null,
+    userId?: string
+): Promise<SummaryResult> {
     try {
         const result = await summarizeChartData(input);
 
         if (userId) {
-            await logHistoryEvent(userId, 'CLIMATE_SUMMARY', input.locationName);
+            await logHistoryEvent({ userId, type: 'CLIMATE_SUMMARY', city, state, country, summary: result.summary });
         }
 
         return { success: true, data: result };
@@ -160,3 +194,5 @@ export async function getChartSummary(input: ChartDataSummaryInput, userId?: str
         return { success: false, error: errorMessage };
     }
 }
+
+    

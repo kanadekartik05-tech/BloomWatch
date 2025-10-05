@@ -39,6 +39,7 @@ const NdviPredictionDataSchema = z.array(
     z.object({
       month: z.string().describe('The month of the NDVI reading.'),
       value: z.number().describe('The NDVI value for the month.'),
+      date: z.string().describe('The specific date for the reading.'),
     })
 );
 
@@ -46,7 +47,7 @@ export const PredictNextBloomDateInputSchema = z.object({
   regionName: z.string().describe('The name of the region.'),
   lat: z.number().describe('The latitude of the region.'),
   lon: z.number().describe('The longitude of the region.'),
-  ndviData: NdviPredictionDataSchema.describe('Historical NDVI data for the region.'),
+  ndviData: NdviPredictionDataSchema.describe('Historical vegetation proxy data (insolation) for the region.'),
   latestBloomDate: z.string().describe('The most recent bloom date for the region.'),
   climateData: ClimateDataOutputSchema.describe('Recent climate data for the region for the last 12 months.'),
 });
@@ -58,7 +59,7 @@ export const PredictNextBloomDateOutputSchema = z.object({
   ecologicalSignificance: z.string().describe("The ecological significance of this blooming event for the region's ecosystem, including its impact on pollinators and wildlife."),
   potentialSpecies: z.string().describe('A list of potential plant or tree species that might be blooming in this region at this time of year, based on the geographic location.'),
   humanImpact: z.string().describe('The potential impact of this bloom event on human activities, such as agriculture (e.g., crop flowering), tourism, or public health (e.g., pollen allergies).'),
-  ndviData: NdviPredictionDataSchema.describe('The same NDVI data that was passed as input, returned for charting purposes.'),
+  ndviData: NdviPredictionDataSchema.describe('The same vegetation proxy data that was passed as input, returned for charting purposes.'),
 });
 export type PredictNextBloomDateOutput = z.infer<typeof PredictNextBloomDateOutputSchema>;
 
@@ -93,3 +94,5 @@ export type SinglePredictionResult = z.infer<typeof SinglePredictionResultSchema
 
 export const BatchPredictionOutputSchema = z.array(SinglePredictionResultSchema);
 export type BatchPredictionOutput = z.infer<typeof BatchPredictionOutputSchema>;
+
+    

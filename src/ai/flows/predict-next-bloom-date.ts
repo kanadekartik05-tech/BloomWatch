@@ -36,7 +36,7 @@ Region Name: {{regionName}}
 Coordinates: (Lat: {{lat}}, Lon: {{lon}})
 Latest Bloom Date: {{latestBloomDate}}
 
-Historical NDVI Data (Vegetation Index):
+Historical Insolation Data (Proxy for Vegetation Health):
 {{#each ndviData}}
   {{month}}: {{value}}
 {{/each}}
@@ -47,8 +47,8 @@ Recent Climate Data (Last 12 Months):
 {{/each}}
 
 Analysis Instructions:
--   **predictedNextBloomDate**: Analyze all provided data to predict the next bloom date. Blooming events typically occur when NDVI values reach a peak, influenced by preceding climate conditions. Output the date in YYYY-MM-DD format.
--   **predictionJustification**: Briefly explain your reasoning, mentioning how the climate and NDVI data influenced your prediction.
+-   **predictedNextBloomDate**: Analyze all provided data to predict the next bloom date. Blooming events typically occur when vegetation health peaks, influenced by preceding climate conditions. Output the date in YYYY-MM-DD format.
+-   **predictionJustification**: Briefly explain your reasoning, mentioning how the climate and insolation data influenced your prediction.
 -   **ecologicalSignificance**: Describe why this bloom is important for the local ecosystem. Consider pollinators (bees, butterflies), birds, and other wildlife that depend on these flowers for food and habitat.
 -   **potentialSpecies**: Based on the region's geography ({{lat}}, {{lon}}) and the time of year, list a few plant or tree species likely to be contributing to this bloom. For example, for Kyoto in April, you would mention Cherry Blossoms (Sakura).
 -   **humanImpact**: Describe the relevance of this bloom for people. Think about agriculture (e.g., fruit tree flowering), tourism (e.g., wildflower festivals), or public health (e.g., high pollen counts).
@@ -71,3 +71,5 @@ const predictNextBloomDateFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

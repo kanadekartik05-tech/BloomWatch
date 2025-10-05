@@ -93,7 +93,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
         startAnalysisTransition(async () => {
             const start = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
             const end = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
-            const result = await getAnalysisForCity(representativeCity, user?.uid, start, end);
+            const result = await getAnalysisForCity(representativeCity, state, country, user?.uid, start, end);
             if (result.success) {
                 setClimateData(result.climateData);
                 setVegetationData(result.vegetationData);
@@ -120,7 +120,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
           setPrediction(null);
           setPredictionError(null);
           
-          const result = await getBloomPredictionForCity(representativeCity, user?.uid);
+          const result = await getBloomPredictionForCity(representativeCity, state, country, user?.uid);
     
           if (result.success && result.data) {
             setPrediction(result.data);
@@ -131,7 +131,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
       };
 
     const handleGenerateSummary = () => {
-        if (!state || !climateData || !vegetationData) return;
+        if (!state || !climateData || !vegetationData || !representativeCity) return;
 
         startSummaryTransition(async () => {
             setSummary(null);
@@ -140,7 +140,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                 locationName: state.name,
                 climateData,
                 vegetationData,
-            }, user?.uid);
+            }, representativeCity, state, country, user?.uid);
             if (result.success) {
                 setSummary(result.data.summary);
             } else {
@@ -316,7 +316,7 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
                     </div>
                     
                     <div className="space-y-4">
-                        <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isAnalysisPending || !climateData || !vegetationData} className="w-full">
+                        <Button onClick={handleGenerateSummary} disabled={isSummaryPending || isAnalysisPending || !climateData || !vegetationData}>
                             {isSummaryPending ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
                             Generate Short Reply
                         </Button>
@@ -403,3 +403,5 @@ export function StateInfoPanel({ state, country, onBackToCountries, onClose }: S
     </Card>
   );
 }
+
+    
