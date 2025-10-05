@@ -1,10 +1,9 @@
 'use client';
 
-import { useFormState } from 'react-dom';
+import { useActionState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,7 @@ const SignUpFormSchema = z.object({
 });
 
 export function SignUpForm() {
-  const [state, formAction] = useFormState(signup, { success: false, message: '' });
+  const [state, formAction] = useActionState(signup, { success: false, message: '' });
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
