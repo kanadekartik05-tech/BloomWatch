@@ -270,9 +270,9 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                     {isPending && <div className="flex items-center gap-2 text-muted-foreground"><Loader className="h-6 w-6 animate-spin" /><p>Fetching new prediction...</p></div>}
                 </div>
                 <DialogContent className="max-w-3xl">
-                     {predictions.map(({ predictionResult }) => (
+                     {predictions.map(({ region, predictionResult }) => (
                          predictionResult.success && (
-                            <>
+                            <React.Fragment key={`${region.name}-${predictionResult.data.predictedNextBloomDate}`}>
                                 <DialogHeader>
                                     <DialogTitle className="text-2xl font-bold text-primary">
                                         Predicted Bloom Date: {new Date(predictionResult.data.predictedNextBloomDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -310,7 +310,7 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
                                         </ChartContainer>
                                     </div>
                                 </div>
-                            </>
+                            </React.Fragment>
                          )
                      ))}
                 </DialogContent>
@@ -318,3 +318,5 @@ export function DashboardView({ initialRegions }: { initialRegions: Region[] }) 
         </div>
     );
 }
+
+    
