@@ -1,11 +1,11 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +17,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signup } from '../actions';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Loader } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
+import { createUserProfile } from '../actions';
+
 
 const SignUpFormSchema = z.object({
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -31,7 +32,6 @@ const SignUpFormSchema = z.object({
 type SignUpFormValues = z.infer<typeof SignUpFormSchema>;
 
 export function SignUpForm() {
-  const [state, formAction] = useActionState(signup, { success: false, message: '' });
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -46,50 +46,84 @@ export function SignUpForm() {
     },
   });
 
-  useEffect(() => {
-    if (state.message) {
-      if (state.success) {
+  const onSubmit = async (data: SignUpFormValues) => {
+    if (!auth) {
         toast({
-          title: "Account Created!",
-          description: state.message,
+            title: "Authentication service not available",
+            description: "Please try again later.",
+            variant: "destructive"
         });
+        return;
+    }
 
-        // After the server action successfully creates the user,
-        // we sign them in on the client.
-        const { email, password } = form.getValues();
-        signInWithEmailAndPassword(auth, email, password).catch((error) => {
-            // This sign-in should not fail if creation succeeded, but we'll handle it.
-            console.error("Client sign-in after signup failed:", error);
-            toast({
-                title: "Auto Login Failed",
-                description: "Your account was created, but you need to log in manually.",
-                variant: "destructive"
-            })
-            router.push('/login');
-        })
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
         
-      } else {
-        toast({
+        // Update profile on the client
+        await updateProfile(userCredential.user, { displayName: data.name });
+
+        // Call server action to create Firestore document
+        // We need to construct a UserRecord-like object for the server action
+        const userForServer = {
+            uid: userCredential.user.uid,
+            email: userCredential.user.email,
+            displayName: data.name,
+            providerData: userCredential.user.providerData,
+            emailVerified: userCredential.user.emailVerified,
+            phoneNumber: userCredential.user.phoneNumber,
+            photoURL: userCredential.user.photoURL,
+            disabled: userCredential.user.disabled,
+            metadata: userCredential.user.metadata,
+            tenantId: userCredential.user.tenantId,
+            customClaims: {}, // Not available on client
+            tokensValidAfterTime: undefined, // Not available on client
+            toJSON: () => ({...userCredential.user})
+        }
+        
+        // This is a type assertion because the client User object is slightly different
+        // from the admin SDK's UserRecord. This is safe for our use case.
+        await createUserProfile(userForServer as any);
+
+    } catch(error: any) {
+        let message = 'An unexpected error occurred.';
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                message = 'This email address is already in use.';
+                break;
+            case 'auth/invalid-email':
+                message = 'Please enter a valid email address.';
+                break;
+            case 'auth/weak-password':
+                message = 'The password is too weak. Please choose a stronger password.';
+                break;
+            default:
+                console.error("Signup error:", error);
+                break;
+        }
+         toast({
           title: "Sign Up Failed",
-          description: state.message,
+          description: message,
           variant: "destructive",
         });
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, toast, router, auth]);
+  }
+
 
   useEffect(() => {
     // If the user is logged in (either by the effect above or already), redirect.
     if (!isUserLoading && user) {
+        toast({
+            title: "Sign Up Successful!",
+            description: "Welcome to BloomWatch.",
+        });
         router.push('/dashboard');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, toast]);
 
   return (
     <Form {...form}>
       <form
-        action={formAction}
+        onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6"
       >
         <FormField
@@ -131,8 +165,8 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          <UserPlus className="mr-2 h-4 w-4" />
+        <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
+            {form.formState.isSubmitting || isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
           Sign Up
         </Button>
       </form>

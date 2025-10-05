@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -41,28 +41,38 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: z.infer<typeof LoginFormSchema>) => {
-    // Non-blocking sign-in attempt
-    signInWithEmailAndPassword(auth, data.email, data.password)
-        .catch((error) => {
-            let message = "An unexpected error occurred during login.";
-            switch(error.code) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                    message = "Invalid email or password.";
-                    break;
-                case 'auth/invalid-email':
-                    message = 'Please enter a valid email address.';
-                    break;
-                default:
-                    console.error("Login Error:", error);
-                    break;
-            }
-            toast({
-                title: "Login Failed",
-                description: message,
-                variant: "destructive",
-            });
+    if (!auth) {
+        toast({
+            title: "Authentication service not available",
+            description: "Please try again later.",
+            variant: "destructive"
         });
+        return;
+    }
+    
+    try {
+        await signInWithEmailAndPassword(auth, data.email, data.password)
+    } catch(error: any) {
+        let message = "An unexpected error occurred during login.";
+        switch(error.code) {
+            case 'auth/user-not-found':
+            case 'auth/invalid-credential':
+            case 'auth/wrong-password':
+                message = "Invalid email or password.";
+                break;
+            case 'auth/invalid-email':
+                message = 'Please enter a valid email address.';
+                break;
+            default:
+                console.error("Login Error:", error);
+                break;
+        }
+        toast({
+            title: "Login Failed",
+            description: message,
+            variant: "destructive",
+        });
+    }
   };
 
   useEffect(() => {
@@ -108,8 +118,8 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-          <LogIn className="mr-2 h-4 w-4" />
+        <Button type="submit" disabled={form.formState.isSubmitting || isUserLoading} className="w-full">
+          {isUserLoading ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
           Sign In
         </Button>
       </form>

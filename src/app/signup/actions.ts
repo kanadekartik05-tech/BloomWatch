@@ -1,77 +1,60 @@
 'use server';
 
 import { z } from 'zod';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import type { UserRecord } from 'firebase-admin/auth';
 
-const SignUpSchema = z.object({
-  name: z.string().min(2),
+const CreateUserProfileSchema = z.object({
+  uid: z.string(),
   email: z.string().email(),
-  password: z.string().min(6),
+  displayName: z.string().min(2),
 });
 
-type SignUpState = {
+type CreateUserProfileState = {
   success: boolean;
   message: string;
 };
 
-export async function signup(prevState: SignUpState, formData: FormData): Promise<SignUpState> {
-  const validatedFields = SignUpSchema.safeParse(Object.fromEntries(formData.entries()));
+// This is now a dedicated server action to create a user's profile
+// in Firestore after they have been created on the client.
+export async function createUserProfile(user: UserRecord): Promise<CreateUserProfileState> {
+  const validatedFields = CreateUserProfileSchema.safeParse({
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+  });
 
   if (!validatedFields.success) {
     return {
       success: false,
-      message: 'Invalid form data.',
+      message: 'Invalid user data provided.',
     };
   }
-
-  const { name, email, password } = validatedFields.data;
+  
+  const { uid, email, displayName } = validatedFields.data;
 
   try {
     await initializeFirebaseAdmin();
-    const auth = getAuth();
     const firestore = getFirestore();
 
-    const userRecord = await auth.createUser({
-        email,
-        password,
-        displayName: name,
-    });
-
-    const userRef = firestore.collection('users').doc(userRecord.uid);
+    const userRef = firestore.collection('users').doc(uid);
     await userRef.set({
-      uid: userRecord.uid,
-      email: userRecord.email,
-      displayName: name,
+      uid: uid,
+      email: email,
+      displayName: displayName,
       createdAt: new Date(),
     });
 
     return {
       success: true,
-      message: 'Your account has been created successfully.',
+      message: 'User profile created successfully.',
     };
   } catch (error: any) {
-    let message = 'An unexpected error occurred.';
-    if (error.code) {
-        switch (error.code) {
-            case 'auth/email-already-exists':
-                message = 'This email address is already in use.';
-                break;
-            case 'auth/invalid-email':
-                message = 'Please enter a valid email address.';
-                break;
-            case 'auth/weak-password':
-                message = 'The password is too weak. Please choose a stronger password.';
-                break;
-            default:
-                message = 'An error occurred during sign up. Please try again.';
-                break;
-        }
-    }
+    console.error("Error creating user profile:", error);
     return {
       success: false,
-      message,
+      message: 'An unexpected error occurred while creating user profile.',
     };
   }
 }
