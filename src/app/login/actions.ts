@@ -14,15 +14,10 @@ type LoginState = {
   message: string;
 };
 
-// This is a server action, so it runs on the server.
-// We need to use the Firebase Admin SDK here.
-// NOTE: signInWithEmailAndPassword is a client-side SDK function.
-// The Admin SDK does not handle sessions in the same way.
-// A common pattern is to verify the user's password (which we can't do directly with password hashes)
-// or to create a custom token and send it to the client to sign in with.
-// For this prototype, we'll assume a simplified custom token flow.
-// A real app would need a more secure implementation.
-
+// This server action now only verifies if a user exists.
+// It DOES NOT and CANNOT log the user in from the server.
+// The client will use the client-side SDK to sign in, and this
+// action's success is a signal to the client to proceed.
 export async function login(prevState: LoginState, formData: FormData): Promise<LoginState> {
   const validatedFields = LoginSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -33,25 +28,19 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
     };
   }
 
-  const { email, password } = validatedFields.data;
+  const { email } = validatedFields.data;
 
   try {
-    // This is a simplified example. A real app would need to
-    // verify the password, which isn't directly possible with the Admin SDK
-    // in a simple way. You'd typically call a client-side function or an endpoint
-    // that uses the client SDK.
-    // For the prototype, we are simulating a successful login if the user exists.
     await initializeFirebaseAdmin();
     const auth = getAuth();
     
     // This just checks if the user exists. It DOES NOT verify the password.
     await auth.getUserByEmail(email);
 
-    // If the user exists, we assume login is successful for this prototype.
-    // In a real app, you would verify the password and create a custom session.
+    // If we get here, the user exists. The client can now attempt to sign in.
     return {
       success: true,
-      message: 'You have been successfully logged in.',
+      message: 'User exists. Client can now attempt sign-in.',
     };
 
   } catch (error: any) {

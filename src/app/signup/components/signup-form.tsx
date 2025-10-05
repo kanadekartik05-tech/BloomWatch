@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { signup } from '../actions';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 
 const SignUpFormSchema = z.object({
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -27,13 +28,16 @@ const SignUpFormSchema = z.object({
     password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
+type SignUpFormValues = z.infer<typeof SignUpFormSchema>;
+
 export function SignUpForm() {
   const [state, formAction] = useActionState(signup, { success: false, message: '' });
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-
-  const form = useForm<z.infer<typeof SignUpFormSchema>>({
+  const auth = useAuth();
+  
+  const form = useForm<SignUpFormValues>({
     resolver: zodResolver(SignUpFormSchema),
     defaultValues: {
       name: '',
@@ -49,7 +53,21 @@ export function SignUpForm() {
           title: "Account Created!",
           description: state.message,
         });
-        router.push('/dashboard');
+
+        // After the server action successfully creates the user,
+        // we sign them in on the client.
+        const { email, password } = form.getValues();
+        signInWithEmailAndPassword(auth, email, password).catch((error) => {
+            // This sign-in should not fail if creation succeeded, but we'll handle it.
+            console.error("Client sign-in after signup failed:", error);
+            toast({
+                title: "Auto Login Failed",
+                description: "Your account was created, but you need to log in manually.",
+                variant: "destructive"
+            })
+            router.push('/login');
+        })
+        
       } else {
         toast({
           title: "Sign Up Failed",
@@ -58,14 +76,15 @@ export function SignUpForm() {
         });
       }
     }
-  }, [state, toast, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, toast, router, auth]);
 
   useEffect(() => {
+    // If the user is logged in (either by the effect above or already), redirect.
     if (!isUserLoading && user) {
         router.push('/dashboard');
     }
-  }, [user, isUserLoading, router])
-
+  }, [user, isUserLoading, router]);
 
   return (
     <Form {...form}>

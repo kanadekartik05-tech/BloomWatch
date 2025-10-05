@@ -16,10 +16,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { login } from '../actions';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const LoginFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -27,10 +27,10 @@ const LoginFormSchema = z.object({
 });
 
 export function LoginForm() {
-  const [state, formAction] = useActionState(login, { success: false, message: '' });
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
 
   const form = useForm<z.infer<typeof LoginFormSchema>>({
     resolver: zodResolver(LoginFormSchema),
@@ -40,35 +40,46 @@ export function LoginForm() {
     },
   });
 
-  useEffect(() => {
-    if (state.message) {
-      if (state.success) {
-        toast({
-          title: "Logged In!",
-          description: state.message,
+  const onSubmit = async (data: z.infer<typeof LoginFormSchema>) => {
+    // Non-blocking sign-in attempt
+    signInWithEmailAndPassword(auth, data.email, data.password)
+        .catch((error) => {
+            let message = "An unexpected error occurred during login.";
+            switch(error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    message = "Invalid email or password.";
+                    break;
+                case 'auth/invalid-email':
+                    message = 'Please enter a valid email address.';
+                    break;
+                default:
+                    console.error("Login Error:", error);
+                    break;
+            }
+            toast({
+                title: "Login Failed",
+                description: message,
+                variant: "destructive",
+            });
         });
-        router.push('/dashboard');
-      } else {
-        toast({
-          title: "Login Failed",
-          description: state.message,
-          variant: "destructive",
-        });
-      }
-    }
-  }, [state, toast, router]);
+  };
 
   useEffect(() => {
     if (!isUserLoading && user) {
+        toast({
+            title: "Logged In!",
+            description: "You have been successfully logged in.",
+        });
         router.push('/dashboard');
     }
-  }, [user, isUserLoading, router])
+  }, [user, isUserLoading, router, toast]);
 
 
   return (
     <Form {...form}>
       <form
-        action={formAction}
+        onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6"
       >
         <FormField

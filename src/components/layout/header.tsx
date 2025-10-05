@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Leaf, Menu, X, LogIn, LogOut } from 'lucide-react';
+import { Leaf, Menu, LogIn, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -19,6 +19,7 @@ const navItems = [
   { href: '/climate', label: 'Climate' },
   { href: '/about', label: 'About' },
   { href: '/info', label: 'Info' },
+  { href: '/references', label: 'References' },
 ];
 
 function AuthButton() {
