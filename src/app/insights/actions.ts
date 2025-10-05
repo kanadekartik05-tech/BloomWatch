@@ -27,7 +27,7 @@ type NdviResult = {
     error: string;
 };
 
-async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: string, predictedDate: string) {
+async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: string, prediction: PredictNextBloomDateOutput) {
     try {
         await initializeFirebaseAdmin();
         const firestore = getFirestore();
@@ -35,7 +35,7 @@ async function logHistoryEvent(userId: string, type: 'PREDICTION', regionName: s
         await historyCollection.add({
             type,
             regionName,
-            predictedDate,
+            prediction,
             createdAt: new Date(),
         });
     } catch (error) {
@@ -79,14 +79,14 @@ export async function getEnhancedBloomPrediction(input: { cityName: string, lat:
             lat: input.lat,
             lon: input.lon,
             climateData: climateResult,
-            ndviData: input.ndviData.map(d => ({ month: d.month, value: d.value })),
+            ndviData: input.ndviData, // Pass the full ndviData object which includes the date
             latestBloomDate: dummyLatestBloom,
         };
         
         const result = await predictNextBloomDate(predictionInput);
 
         if (input.userId) {
-            await logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result.predictedNextBloomDate);
+            await logHistoryEvent(input.userId, 'PREDICTION', input.cityName, result);
         }
         
         return { success: true, data: result };
