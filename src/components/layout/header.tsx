@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Leaf, Menu, X } from 'lucide-react';
+import { Leaf, Menu, X, LogIn, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'Home' },
@@ -16,9 +19,41 @@ const navItems = [
   { href: '/climate', label: 'Climate' },
   { href: '/about', label: 'About' },
   { href: '/info', label: 'Info' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/references', label: 'References' },
 ];
+
+function AuthButton() {
+    const { user, isUserLoading } = useUser();
+    const auth = useAuth();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        router.push('/');
+    }
+
+    if (isUserLoading) {
+        return <Button variant="outline" size="sm" disabled>Loading...</Button>;
+    }
+    
+    if (user) {
+        return (
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+            </Button>
+        );
+    }
+
+    return (
+        <Button asChild variant="outline" size="sm">
+            <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Login / Signup
+            </Link>
+        </Button>
+    )
+}
+
 
 export default function Header() {
   const pathname = usePathname();
@@ -49,32 +84,38 @@ export default function Header() {
             <NavLink key={item.href} {...item} />
           ))}
         </nav>
-        <div className="flex flex-1 items-center justify-end md:hidden">
-          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-              <div className="flex flex-col p-6">
-                <Link
-                  href="/"
-                  className="mb-8 flex items-center space-x-2"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Leaf className="h-6 w-6 text-primary" />
-                  <span className="font-bold font-headline">BloomWatch</span>
-                </Link>
-                <nav className="flex flex-col space-y-4">
-                  {navItems.map((item) => (
-                    <NavLink key={item.href} {...item} />
-                  ))}
-                </nav>
-              </div>
-            </SheetContent>
-          </Sheet>
+        <div className="flex flex-1 items-center justify-end space-x-4">
+            <div className="hidden md:block">
+                <AuthButton />
+            </div>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Open menu</span>
+                </Button>
+                </SheetTrigger>
+                <SheetContent side="left">
+                <div className="flex flex-col p-6">
+                    <Link
+                    href="/"
+                    className="mb-8 flex items-center space-x-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                    <Leaf className="h-6 w-6 text-primary" />
+                    <span className="font-bold font-headline">BloomWatch</span>
+                    </Link>
+                    <nav className="flex flex-col space-y-4">
+                    {navItems.map((item) => (
+                        <NavLink key={item.href} {...item} />
+                    ))}
+                    </nav>
+                    <div className="mt-6 border-t pt-6">
+                        <AuthButton />
+                    </div>
+                </div>
+                </SheetContent>
+            </Sheet>
         </div>
       </div>
     </header>
